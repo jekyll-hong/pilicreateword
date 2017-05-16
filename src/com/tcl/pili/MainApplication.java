@@ -13,6 +13,7 @@ import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -326,7 +327,7 @@ public final class MainApplication {
 		}
 	}
 	
-	private static int preparePDFPages(BufferedImage image, String pdfDirPath, int pageNumber) throws IOException{
+	private static int preparePDFPages(BufferedImage image, String pdfDirPath, int pageNumber) throws IOException {
 		File pdfDir = new File(pdfDirPath);
 		if (!pdfDir.exists()) {
 			pdfDir.mkdir();
@@ -337,18 +338,23 @@ public final class MainApplication {
 			return pageNumber;
 		}
 		
-		int[] firstLine = getLineOfWords(image, 0);
-		int lineHeight = firstLine[1] - firstLine[0] + 1;
+		//word rectangle
+		int[] word = wordRect(image);
+		int wordWidth = word[3] - word[1] + 1;
+		int wordHeight = word[2] - word[0] + 1;
 		
-		final int margin = 2 * lineHeight;
+		//calculate page parameter by word rectangle
+		final int margin = 2 * wordHeight;
 		final int space = 2;
-		final int lineCnt = 25;
+		final int wordsInLine = 15;
+		final int lineNumber = 25;
+		int pageWidth = margin + (wordWidth * wordsInLine) + ((wordsInLine - 1) * space) + margin;
+		int pageHeight = margin + (wordHeight * lineNumber) + ((lineNumber - 1) * space) + margin;
 		
-		int pageWidth = image.getWidth();
-		int pageHeight = margin + (lineHeight * lineCnt) + ((lineCnt - 1) * space) + margin;
-		
-		int srcOffset = 0;
-		while (srcOffset < image.getHeight()) {
+		//arrange words in image
+		boolean newSection = true;
+	    ArrayList<int[]> words = wordsInImage(image, wordHeight);
+		while (!words.isEmpty()) {
 			//create page image
 			BufferedImage pageImage = new BufferedImage(pageWidth, pageHeight, BufferedImage.TYPE_BYTE_GRAY);
 			
@@ -357,23 +363,55 @@ public final class MainApplication {
 			graphics.setPaint(new Color(255, 255, 255));
 			graphics.fillRect(0, 0, pageImage.getWidth(), pageImage.getHeight());
 			
-			int dstOffset = margin + 1;
-			for (int cnt = 0; cnt < lineCnt; cnt++) {
-				int[] line = getLineOfWords(image, srcOffset);
-				if (line[0] == -1) {
-					//no more line
-					srcOffset = image.getHeight();
+			//place words
+			int yPos = margin + 1;
+			for (int i = 0; i < lineNumber; i++) {
+				if (words.isEmpty()) {
 					break;
 				}
 				
-				// crop line image
-				BufferedImage lineImage = image.getSubimage(0, line[0], image.getWidth(), line[1] - line[0] + 1);
-				srcOffset = line[1] + 1;
+				//if next line is a new section
+				if (!newSection) {
+					word = words.get(0);
+					if (word[0] == -1) {
+						words.remove(0);
+						//end of this section. next line is a new section
+						newSection = true;
+					}
+				}
 				
-				// draw line image
-				graphics.drawImage(lineImage, null, 0, dstOffset);
-				dstOffset += lineImage.getHeight();
-				dstOffset += space;
+				int wordsNumber = wordsInLine;
+				int xPos = margin + 1;
+				
+				// if new section, indent 2 blank word
+				if (newSection) {
+					xPos += ((wordWidth + space) * 2);
+					wordsNumber -= 2;
+					
+					newSection = false;
+				}
+				
+				for (int j = 0; j < wordsNumber; j++) {
+					if (words.isEmpty()) {
+						break;
+					}
+					
+					//if section end
+					word = words.remove(0);
+					if (word[0] == -1) {
+						newSection = true;
+						break;
+					}
+					
+					//crop word image and draw on page
+					BufferedImage wordImage = image.getSubimage(word[1], word[0], word[3] - word[1] + 1, word[2] - word[0] + 1);
+					graphics.drawImage(wordImage, null, xPos, yPos);
+					xPos += wordWidth;
+					xPos += space;
+				}
+				
+				yPos += wordHeight;
+				yPos += space;
 			}
 			
 			ImageIO.write(pageImage, "png", new File(pdfDirPath + "/" + pageNumber + ".png"));
@@ -381,6 +419,64 @@ public final class MainApplication {
 		}
 		
 		return pageNumber;
+	}
+	
+	private static int[] wordRect(BufferedImage image) {
+		int[] line = getLineOfWords(image, 0);
+		int[] column = getColumnOfWords(image, 0);
+		
+		return new int[] {line[0], column[0], line[1], column[1]};
+	}
+	
+	private static ArrayList<int[]> wordsInImage(BufferedImage image, int wordHeight) {
+		ArrayList<int[]> lines = new ArrayList<int[]>();
+		ArrayList<int[]> columns = new ArrayList<int[]>();
+		
+		int yOffset = 0;
+		while (yOffset < image.getHeight()) {
+			int[] line = getLineOfWords(image, yOffset);
+			if (line[0] == -1) {
+				//no more line
+				break;
+			}
+			
+			lines.add(line);
+			yOffset = line[1] + 1;
+		}
+		
+		int xOffset = 0;
+		while (true) {
+			int[] column = getColumnOfWords(image, xOffset);
+			if (column[0] == -1) {
+				//no more column
+				break;
+			}
+			
+			columns.add(column);
+			xOffset = column[1] + 1;
+		}
+		
+		ArrayList<int[]> words = new ArrayList<int[]>();
+		for (int i = 0; i < lines.size(); i++) {
+			int[] line = lines.get(i);
+			
+			if (i >= 1) {
+				int[] prevLine = lines.get(i - 1);
+				if (line[0] - prevLine[1] > wordHeight) {
+					words.add(new int[] {-1, -1, -1, -1}); //section flag
+				}
+			}
+			
+			for (int j = 0; j < columns.size(); j++) {
+				int[] column = columns.get(j);
+				
+				int[] word = new int[] {line[0], column[0], line[1], column[1]};
+				if (!isBlankWord(image, word)) {
+					words.add(word);
+				}
+			}
+		}
+		return words;
 	}
 	
 	private static int[] getLineOfWords(BufferedImage image, int pos) {
@@ -417,13 +513,13 @@ public final class MainApplication {
 		return new int[] {start, end};
 	}
 	
-	private static int[] getWordInLine(BufferedImage image, int[] line) {
+	private static int[] getColumnOfWords(BufferedImage image, int pos) {
 	    int start = -1;
 	    int end = -1;
 
-	    for (int i = 0; i < image.getWidth(); i++) {
+	    for (int i = pos; i < image.getWidth(); i++) {
 	        boolean isBackground = true;
-	        for (int j = line[0]; j <= line[1]; j++) {
+	        for (int j = 0; j < image.getHeight(); j++) {
 				int gray = image.getRGB(i, j) & 0xff;
 				//FIXME: background gray is bigger than 240
 				if (gray < 240) {
@@ -449,6 +545,20 @@ public final class MainApplication {
 	    }
 	    
 	    return new int[] {start, end};
+	}
+	
+	private static boolean isBlankWord(BufferedImage image, int[] word) {
+		for (int i = word[0]; i <= word[2]; i++) {
+			for (int j = word[1]; j <= word[3]; j++) {
+				int gray = image.getRGB(j, i) & 0xff;
+				//FIXME: background gray is bigger than 240
+				if (gray < 240) {
+					return false;
+				}
+			}
+		}
+		
+		return true;
 	}
 	
 	private static void parseEpisodePage(String episodePageURL, final String episodeDirPath) throws ParserException, IOException {
