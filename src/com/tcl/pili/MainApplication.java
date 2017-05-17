@@ -9,6 +9,7 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.URL;
@@ -132,6 +133,9 @@ public final class MainApplication {
 	}
 	
 	private static String getDramaName(String text) {
+		//htmlparser bug
+		text = reTypeUnknownWord(text);
+		
 		String serialNumber = "";
 		Matcher result = Pattern.compile("\\d{2}.").matcher(text);
 		if (result.find()) {
@@ -208,17 +212,32 @@ public final class MainApplication {
 							episodeDir.mkdir();
 						}
 						
-						try {
-							parseEpisodePage(domain + "/PILI/" + episodePageRelativePath, episodeDir.getPath());
-							BufferedImage plotImage = combinePlotImages(enumeratePlotImages(episodeDir.getPath()));
-							pageNumber = preparePDFPages(plotImage, dramaDirPath + "/pdf", pageNumber);
+						boolean retry = false;
+						do {
+							try {
+								parseEpisodePage(domain + "/PILI/" + episodePageRelativePath, episodeDir.getPath());
+								BufferedImage plotImage = combinePlotImages(enumeratePlotImages(episodeDir.getPath()));
+								pageNumber = preparePDFPages(plotImage, dramaDirPath + "/pdf", pageNumber);
+							}
+							catch (ParserException e) {
+								System.err.print("parse episode page error, exception: " + e.getMessage() + "\r\n");
+								retry = true;
+							}
+							catch (IOException e) {
+								System.err.print("combine episode image error, exception: " + e.getMessage() + "\r\n");
+							}
+							
+							if (retry) {
+								System.out.print("parse episode page fail, retry after 5s\r\n");
+								
+								try {
+									Thread.sleep(5000);
+								} 
+								catch (InterruptedException e1) {
+								}
+							}
 						}
-						catch (ParserException e) {
-							System.err.print("parse episode page error, exception: " + e.getMessage() + "\r\n");
-						}
-						catch (IOException e) {
-							System.err.print("combine episode image error, exception: " + e.getMessage() + "\r\n");
-						}
+						while (retry);
 					}
 				}
 			});
@@ -226,8 +245,10 @@ public final class MainApplication {
 	}
 	
 	private static final String getEpisodeName(String text) {
-		int start = text.indexOf(".") - 2;
+		//htmlparser bug
+		text = reTypeUnknownWord(text);
 		
+		int start = text.indexOf(".") - 2;
 		int end = text.indexOf("&nbsp;");
 		if (end < 0) {
 			return text.substring(start);
@@ -278,6 +299,10 @@ public final class MainApplication {
 			if (i == 0) {
 				//first image, crop 30 lines from top
 				images[i] = images[i].getSubimage(0, 30, images[i].getWidth(), images[i].getHeight() - 30);
+			}
+			else if (i == plotImageFiles.size() - 1) {
+				//last image, crop 1 line from bottom
+				images[i] = images[i].getSubimage(0, 0, images[i].getWidth(), images[i].getHeight() - 1);
 			}
 		}
 		
@@ -484,17 +509,17 @@ public final class MainApplication {
 		int end = -1;
 		
 		for (int i = pos; i < image.getHeight(); i++) {
-			boolean isBackground = true;
+			int wordPixels = 0;
 			for (int j = 0; j < image.getWidth(); j++) {
 				int gray = image.getRGB(j, i) & 0xff;
 				//FIXME: background gray is bigger than 240
 				if (gray < 240) {
-					isBackground = false;
-					break;
+					wordPixels++;
 				}
 			}
 			
-			if (isBackground) {
+			//FIXME: pixels in word are less than 30, line belongs to background
+			if (wordPixels < 30) {
 				if (start != -1) {
 					break;
 				}
@@ -518,17 +543,17 @@ public final class MainApplication {
 	    int end = -1;
 
 	    for (int i = pos; i < image.getWidth(); i++) {
-	        boolean isBackground = true;
+	        int wordPixels = 0;
 	        for (int j = 0; j < image.getHeight(); j++) {
 				int gray = image.getRGB(i, j) & 0xff;
 				//FIXME: background gray is bigger than 240
 				if (gray < 240) {
-					isBackground = false;
-					break;
+					wordPixels++;
 				}
 			}
 	        
-	        if (isBackground) {
+	        //FIXME: pixels in word are less than 100, column belongs to background
+	        if (wordPixels < 100) {
 				if (start != -1) {
 					break;
 				}
@@ -662,5 +687,30 @@ public final class MainApplication {
 	
 	private static Proxy createProxy(String ip, int port) {
 		return new Proxy(Proxy.Type.HTTP, new InetSocketAddress(ip, port));
+	}
+	
+	private static String reTypeUnknownWord(String in) {
+		String word;
+		int pos = in.indexOf("&#22586;");
+		if (pos < 0) {
+			pos = in.indexOf("&#28997;");
+			if (pos < 0) {
+				return in;
+			}
+			else {
+				word = "煅";
+			}
+		}
+		else {
+			word = "堺";
+		}
+		
+		String out = in.substring(0, pos) + word + in.substring(pos + 8);
+		try {
+			out = new String(out.getBytes("UTF-16"), "UTF-16");
+		}
+		catch (UnsupportedEncodingException e) {
+		}
+		return out;
 	}
 }
