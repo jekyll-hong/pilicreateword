@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.URL;
@@ -212,32 +213,35 @@ public final class MainApplication {
 							episodeDir.mkdir();
 						}
 						
-						boolean retry = false;
-						do {
-							try {
-								parseEpisodePage(domain + "/PILI/" + episodePageRelativePath, episodeDir.getPath());
-								BufferedImage plotImage = combinePlotImages(enumeratePlotImages(episodeDir.getPath()));
-								pageNumber = preparePDFPages(plotImage, dramaDirPath + "/pdf", pageNumber);
-							}
-							catch (ParserException e) {
-								System.err.print("parse episode page error, exception: " + e.getMessage() + "\r\n");
-								retry = true;
-							}
-							catch (IOException e) {
-								System.err.print("combine episode image error, exception: " + e.getMessage() + "\r\n");
-							}
-							
-							if (retry) {
-								System.out.print("parse episode page fail, retry after 5s\r\n");
-								
+						try {
+							boolean retry = false;
+							do {
 								try {
-									Thread.sleep(5000);
-								} 
-								catch (InterruptedException e1) {
+									parseEpisodePage(domain + "/PILI/" + episodePageRelativePath, episodeDir.getPath());
+								}
+								catch (ParserException e) {
+									System.err.print("parse episode page error, exception: " + e.getMessage() + "\r\n");
+									retry = true;
+								}
+								
+								if (retry) {
+									System.out.print("parse episode page fail, retry after 5s\r\n");
+									
+									try {
+										Thread.sleep(5000);
+									} 
+									catch (InterruptedException e1) {
+									}
 								}
 							}
+							while (retry);
+							
+							BufferedImage plotImage = combinePlotImages(enumeratePlotImages(episodeDir.getPath()));
+							pageNumber = preparePDFPages(plotImage, dramaDirPath + "/pdf", pageNumber);
 						}
-						while (retry);
+						catch (IOException e) {
+							System.err.print("combine episode image and prepare pdf pages error, exception: " + e.getMessage() + "\r\n");
+						}
 					}
 				}
 			});
@@ -327,7 +331,7 @@ public final class MainApplication {
 	}
 	
 	private static void improveContrast(BufferedImage image) {
-		//CAUSION: gray from 200 to 250. 210 is word, 250 is background.
+		//FIXME: gray from 200 to 250. 210 is word, 250 is background.
 		for (int i = 0; i < image.getHeight(); i++) {
 			for (int j = 0; j < image.getWidth(); j++) {
 				int gray = image.getRGB(j, i) & 0xff;
@@ -336,13 +340,9 @@ public final class MainApplication {
 					//pure background region
 					image.setRGB(j, i, new Color(255, 255, 255).getRGB());
 				}
-				else if (gray >= 230 && gray < 240) {
+				else if (gray >= 220 && gray < 240) {
 					//transitional region
-					image.setRGB(j, i, new Color(gray - 10, gray - 10, gray - 10).getRGB());
-				}
-				else if (gray >= 220 && gray < 230) {
-					//transitional region
-					image.setRGB(j, i, new Color(gray - 30, gray - 30, gray - 30).getRGB());
+					image.setRGB(j, i, new Color(gray - 20, gray - 20, gray - 20).getRGB());
 				}
 				else if (gray < 220) {
 					//pure word region
@@ -365,8 +365,8 @@ public final class MainApplication {
 		
 		//word rectangle
 		int[] word = wordRect(image);
-		int wordWidth = word[3] - word[1] + 1;
-		int wordHeight = word[2] - word[0] + 1;
+		final int wordWidth = word[3] - word[1] + 1;
+		final int wordHeight = word[2] - word[0] + 1;
 		
 		//calculate page parameter by word rectangle
 		final int margin = 2 * wordHeight;
@@ -378,7 +378,7 @@ public final class MainApplication {
 		
 		//arrange words in image
 		boolean newSection = true;
-	    ArrayList<int[]> words = wordsInImage(image, wordHeight);
+	    ArrayList<int[]> words = wordsInImage(image, wordWidth, wordHeight);
 		while (!words.isEmpty()) {
 			//create page image
 			BufferedImage pageImage = new BufferedImage(pageWidth, pageHeight, BufferedImage.TYPE_BYTE_GRAY);
@@ -453,7 +453,7 @@ public final class MainApplication {
 		return new int[] {line[0], column[0], line[1], column[1]};
 	}
 	
-	private static ArrayList<int[]> wordsInImage(BufferedImage image, int wordHeight) {
+	private static ArrayList<int[]> wordsInImage(BufferedImage image, int wordWidth, int wordHeight) {
 		ArrayList<int[]> lines = new ArrayList<int[]>();
 		ArrayList<int[]> columns = new ArrayList<int[]>();
 		
@@ -518,8 +518,8 @@ public final class MainApplication {
 				}
 			}
 			
-			//FIXME: pixels in word are less than 30, line belongs to background
-			if (wordPixels < 30) {
+			//FIXME: pixels in word are less than 5, line belongs to background
+			if (wordPixels < 5) {
 				if (start != -1) {
 					break;
 				}
@@ -552,8 +552,8 @@ public final class MainApplication {
 				}
 			}
 	        
-	        //FIXME: pixels in word are less than 100, column belongs to background
-	        if (wordPixels < 100) {
+	        //FIXME: pixels in word are less than 150, column belongs to background
+	        if (wordPixels < 150) {
 				if (start != -1) {
 					break;
 				}
@@ -604,16 +604,12 @@ public final class MainApplication {
 							System.out.print("plot is writing now, skip" + "\r\n");
 							return;
 						}
-						//TODO: a BUG in htmlparser. correct source is "https" but here we get "http"
-						if (plotImageSrc.contains("livefilestore.com")) {
-							plotImageSrc = plotImageSrc.replace("http", "https");
-						}
-						
 						int pos = plotImageSrc.lastIndexOf("/");
 						if (pos < 0) {
 							System.out.print("plot is writing now, skip" + "\r\n");
 							return;
 						}
+						
 						String imageName = plotImageSrc.substring(pos + 1);
 						String imageURL = plotImageSrc;
 						
@@ -624,8 +620,7 @@ public final class MainApplication {
 							boolean retry = false;
 							do {
 								try {
-									downloadPlotImage(imageURL, imageFile.getPath());
-									retry = imageFile.length() == 0;
+									retry = !downloadPlotImage(imageURL, imageFile.getPath());
 								}
 								catch (IOException e) {
 									System.err.print("download plot image error, exception: " + e.getMessage() + "\r\n");
@@ -633,6 +628,7 @@ public final class MainApplication {
 								}
 								
 								if (retry) {
+									imageFile.delete();
 									System.out.print("download plot image fail, retry after 5s\r\n");
 									
 									try {
@@ -650,8 +646,33 @@ public final class MainApplication {
 		}
 	}
 	
-	private static void downloadPlotImage(String imageURL, String imageFilePath) throws IOException {
-		InputStream in = openImage(imageURL);
+	private static boolean downloadPlotImage(String imageURL, String imageFilePath) throws IOException {
+		HttpURLConnection connection = (HttpURLConnection)createConnection(new URL(imageURL), true);
+		connection.setConnectTimeout(2000);
+		connection.connect();
+		
+		int status = connection.getResponseCode();
+		if (status != HttpURLConnection.HTTP_OK) {
+			if (status == HttpURLConnection.HTTP_MOVED_PERM
+					|| status == HttpURLConnection.HTTP_MOVED_TEMP
+					|| status == HttpURLConnection.HTTP_SEE_OTHER) {
+				//redirect
+				String redirectURL = connection.getHeaderField("Location");
+				connection.disconnect();
+				
+				connection = (HttpURLConnection)createConnection(new URL(redirectURL), true);
+				connection.setConnectTimeout(2000);
+				connection.connect();
+			}
+			else {
+				//fail
+				System.err.print("access plot image " + imageURL + " error, HTTP response code " + status + "\r\n");
+				connection.disconnect();
+				return false;
+			}
+		}
+		
+		InputStream in = connection.getInputStream();
 		OutputStream out = new FileOutputStream(imageFilePath);
 		
 		byte[] buf = new byte[1024];
@@ -666,13 +687,9 @@ public final class MainApplication {
 		
 		in.close();
 		out.close();
-	}
-	
-	private static InputStream openImage(String imageURL) throws IOException {
-		URLConnection conn = createConnection(new URL(imageURL), true);
-		conn.setConnectTimeout(2000);
 		
-		return conn.getInputStream();
+		connection.disconnect();
+		return true;
 	}
 	
 	private static URLConnection createConnection(URL url, boolean proxy) throws IOException {
@@ -695,7 +712,19 @@ public final class MainApplication {
 		if (pos < 0) {
 			pos = in.indexOf("&#28997;");
 			if (pos < 0) {
-				return in;
+				pos = in.indexOf("&#34673;");
+				if (pos < 0) {
+					pos = in.indexOf("&#37474;");
+					if (pos < 0) {
+						return in;
+					}
+					else {
+						word = "鉢";
+					}
+				}
+				else {
+					word = "蝱";
+				}
 			}
 			else {
 				word = "煅";
