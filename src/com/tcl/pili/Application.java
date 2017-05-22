@@ -8,12 +8,10 @@ public final class Application {
 		}
 		
 		MessageLooper looper = new MessageLooper();
-		looper.setTypesetter(Typesetter.createForDevice(arg[0]));
+		looper.setStoragePath(args[0]);
+		looper.setTypesetter(Typesetter.createForDevice(arg[1]));
 		looper.setPDFPacker(new PDFPacker());
 		looper.start();
-
-		WebsiteParserObserverImpl observer = new WebsiteParserObserverImpl(args[1]);
-		observer.setMessageLooper(looper);
 
 		Proxy httpProxy = null;
 		if (args.length > 3) {
@@ -29,8 +27,8 @@ public final class Application {
 		}
 
 		WebsiteParser parser = new WebsiteParser(httpProxy);
-		parser.setObserver(observer);
-
+		parser.setObserver(looper);
+		
 		new Thread(WebsiteParser).start();
 
 		try {

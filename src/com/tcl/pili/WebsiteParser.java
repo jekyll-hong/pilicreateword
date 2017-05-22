@@ -9,22 +9,22 @@ final class WebsiteParser implements Runnable {
 	public WebsiteParser(Proxy proxy) {
 		mHTTPProxy = proxy;
         }
-
+	
         public interface Observer {
 		void onGetDrama(String name);
                 void onGetEpisode(String name);
                 void onGetPlot(BufferedImage image);
 		void onCompleted();
         }
-
+	
 	public void setObserver(Observer observer) {
 		mObserver = observer;
 	}
-
+	
 	public void run() {
 		parseWebsite(sWebsite);
 	}
-
+	
 	private void parseWebsiteHTML(String websiteURL) {
 		String mainURL = "";
 		
@@ -51,12 +51,12 @@ final class WebsiteParser implements Runnable {
 			System.err.print("not find main url!\r\n");
 		}
 	}
-
+	
 	private class DramaInfo {
 		public String url;
 		public String name;
 	}
-
+	
 	private void parseMainHTML(String mainURL) {
 		ArrayList<DramaInfo> dramaList = new ArrayList<DramaInfo>(100);
 
@@ -90,19 +90,19 @@ final class WebsiteParser implements Runnable {
 			System.err.print("not find drama!\r\n");
 		}
 	}
-
+	
 	private String getDramaName(String text) {
 		int leftBracket = text.indexOf("【");
 		int rightBracket = text.lastIndexOf("】");
 
 		return text.substring(leftBracket + 1, rightBracket);
 	}
-
+	
 	private class EpisodeInfo {
 		public String url;
 		public String name;
 	}
-
+	
 	private void parseDramaHTML(String dramaURL) {
 		ArrayList<EpisodeInfo> episodeList = new ArrayList<EpisodeInfo>(100);
 
@@ -136,7 +136,7 @@ final class WebsiteParser implements Runnable {
 			System.err.print("not find episode!\r\n");
 		}
 	}
-
+	
 	private String getEpisodeName(String text) {
 		int start = text.indexOf(".") - 2;
 		int end = text.indexOf("&nbsp;");
@@ -148,7 +148,7 @@ final class WebsiteParser implements Runnable {
 			return text.substring(start, end);
 		}
 	}
-
+	
 	private void parseEpisodeHTML(String episodeURL) {
 		ArrayList<BufferedImage> plotList = new ArrayList<BufferedImage>(10);
 
@@ -189,11 +189,11 @@ final class WebsiteParser implements Runnable {
 			System.err.print("not find plot!\r\n");
 		}
 	}
-
+	
 	private int getPlotImageWidth(ArrayList<BufferedImage> plotList) {
 		return plotList.get(0).getWidth();
 	}
-
+	
 	private int getPlotImageHeight(ArrayList<BufferedImage> plotList) {
 		int height = 0;
 		for (int i = 0; i < images.length; i++) {
@@ -201,7 +201,7 @@ final class WebsiteParser implements Runnable {
 		}
 		return height;
 	}
-
+	
 	private int getPlotImageType(ArrayList<BufferedImage> plotList) {
 		return plotList.get(0).getType(0);
 	}
