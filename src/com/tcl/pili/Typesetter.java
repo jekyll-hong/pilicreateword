@@ -1,11 +1,14 @@
 package com.tcl.pili;
 
-final class Typesetter {
+final class Typesetter implements MessageHandler {
+	private static final int sBackgroundGrayThreshold = 240;
+	
 	public static Typesetter createForDevice(String device) {
 		if (device.equals("nexus 5")) {
-			return new Typesetter(, , 2);
+			return new Typesetter(15, 25, 3);
 		}
 		else {
+			System.err.print("unknown device " + device + "\r\n");
 			return null;
 		}
 	}
@@ -14,28 +17,46 @@ final class Typesetter {
 	private int mWordsOfLine;
 	private int mSpace;
 	
+	private int mTopMargin;
+	private int mBottomMargin;
+	private int mLeftMargin;
+	private int mRightMargin;
+	
 	private Typesetter(int linesOfPage, int wordsOfLine, int space) {
 		mLinesOfPage = linesOfPage;
 		mWordsOfLine = wordsOfLine;
 		mSpace = space;
+		
+		mTopMargin = 2 * wordHeight;
+		mBottomMargin = 2 * wordHeight;
+		mLeftMargin = 2 * wordWidth;
+		mRightMargin = 2 * wordWidth;
 	}
 	
-	public void process(File imageFile) {
-		File episodeDir = imageFile.getParentFile();
-
-		File pageDir = Utils.getSubFile(episodeDir, "page-" + mTargetDevice);
-		if (!pageDir.exist()) {
-			pageDir.mkdir();
+	public boolean handleMessage(Message msg) {
+		if (msg.what == Message.MSG_MAKE_PAGES) {
+			File plotImageFile = (File)msg.obj;
+			BufferedImage plotImage = ImageIO.read(plotImageFile);
+			
+			BufferedImage enhancedPlotImage = preprocess(plotImage);
+			if (Utils.DEBUG) {
+				ImageIO.write(enhancedPlotImage, "jpeg", Utils.getSiblingFile(plotImageFile, "preprocessed.jpg"));
+			}
+			
+			File pageDir = Utils.getSiblingFile(plotImageFile, "page");
+			if (!pageDir.exist()) {
+				pageDir.mkdir();
+			}
+			
+			ArrayList<BufferedImage> pageList = typeset(enhancedPlotImage);
+			for (int i = 0; i < pageList.size(); i++) {
+				ImageIO.write(image, "png", Utils.getChildFile(pageDir, i + ".png"));
+			}
+			
+			return true;
 		}
-		
-		BufferedImage image = preprocess(ImageIO.read(imageFile));
-		if (Utils.DEBUG) {
-			ImageIO.write(image, "jpeg", Utils.getSubFile(episodeDir, "preprocess.jpg"));
-		}
-
-		ArrayList<BufferedImage> pageList = typeset(image);
-		for (int i = 0; i < pageList.size(); i++) {
-			ImageIO.write(image, "png", Utils.getSubFile(pageDir, i + ".png"));
+		else {
+			return false;
 		}
 	}
 	
@@ -44,166 +65,176 @@ final class Typesetter {
 		
 		dst = ImageProcess.crop(src, 30, 1);
 		dst = ImageProcess.gray(dst);
-		dst = ImageProcess.enhance(dst);
+		dst = ImageProcess.sharpen(dst);
 		
 		return dst;
 	}
 	
 	private ArrayList<BufferedImage> typeset(BufferedImage image) {
-		ArrayList<BufferedImage> pageList = new ArrayList<BufferedImage>();
+		BufferedImage image = cropMargin(image);
 		
-		//predict word rectangle
-		int[] word = wordRect(image);
-		final int wordWidth = word[3] - word[1] + 1;
-		final int wordHeight = word[2] - word[0] + 1;
+		int wordWidth = predictWordWidth(image);
+		int wordHeight = predictWordHeight(image);
+		ArrayList<int[]> wordList = getWordInImage(image, wordWidth, wordHeight);
 		
-		//calculate page parameter
-		final int margin = 2 * wordHeight;
-		final int pageWidth = margin + (wordWidth * mWordsOfLine) + ((mWordsOfLine - 1) * space) + margin;
-		final int pageHeight = margin + (wordHeight * mLinesOfPage) + ((mLinesOfPage - 1) * space) + margin;
-		
-		//get all word rectangles
-		ArrayList<int[]> words = wordsInImage(image, wordWidth, wordHeight);
+		boolean isNextSection = true;		
+		do {
+			BufferedImage pageImage = createPageImage(wordWidth, wordHeight);
 			
-		boolean newSection = true;		
-		while (!words.isEmpty()) {
-			//create page image
-			BufferedImage pageImage = new BufferedImage(pageWidth, pageHeight, BufferedImage.TYPE_BYTE_GRAY);
+			int lineCnt = mLinesOfPage;
+			int yOffset = mTopMargin + 1;
 			
-			//fill page image by white color 
-			Graphics2D graphics = pageImage.createGraphics();
-			graphics.setPaint(new Color(255, 255, 255));
-			graphics.fillRect(0, 0, pageImage.getWidth(), pageImage.getHeight());
-			
-			//place words
-			int yPos = margin + 1;
-			for (int i = 0; i < lineNumber; i++) {
-				if (words.isEmpty()) {
-					break;
-				}
-				
-				//if next line is a new section
-				if (!newSection) {
-					word = words.get(0);
+			do {
+				if (!isNextSection) {
+					int[] word = wordList.get(0);
 					if (word[0] == -1) {
 						words.remove(0);
-						//end of this section. next line is a new section
 						newSection = true;
 					}
 				}
 				
-				int wordsNumber = wordsInLine;
-				int xPos = margin + 1;
+				int wordCnt = mWordsOfLine;
+				int xOffset = mLeftMargin + 1;
 				
-				// if new section, indent 2 blank word
-				if (newSection) {
-					xPos += ((wordWidth + space) * 2);
-					wordsNumber -= 2;
+				if (isNextSection) {
+					//indent 2 blank word
+					wordCnt -= 2;
+					xOffset += (wordWidth + mSpace) * 2;
 					
-					newSection = false;
+					isNextSection = false;
 				}
 				
-				for (int j = 0; j < wordsNumber; j++) {
-					if (words.isEmpty()) {
-						break;
-					}
-					
-					//if section end
-					word = words.remove(0);
+				Graphics2D graphics = pageImage.createGraphics();
+				do {
+					int[] word = wordList.remove(0);
 					if (word[0] == -1) {
-						newSection = true;
+						isNextSection = true;
 						break;
 					}
 					
-					//crop word image and draw on page
 					BufferedImage wordImage = image.getSubimage(word[1], word[0], word[3] - word[1] + 1, word[2] - word[0] + 1);
-					graphics.drawImage(wordImage, null, xPos, yPos);
-					xPos += wordWidth;
-					xPos += space;
+					graphics.drawImage(wordImage, null, xOffset, yOffset);
+					
+					xOffset += wordWidth + mSpace;
 				}
+				while ((--wordCnt > 0) && !wordList.isEmpty());
 				
-				yPos += wordHeight;
-				yPos += space;
+				yOffset += wordHeight + space;
 			}
+			while ((--lineCnt > 0) && !wordList.isEmpty());
 			
 			pageList.add(pageImage);
 		}
-	}
-
-	private static int[] wordRect(BufferedImage image) {
-		int[] line = getLineOfWords(image, 0);
-		int[] column = getColumnOfWords(image, 0);
+		while (!wordList.isEmpty());
 		
-		return new int[] {line[0], column[0], line[1], column[1]};
+		return pageList;
 	}
 	
-	private static ArrayList<int[]> wordsInImage(BufferedImage image, int wordWidth, int wordHeight) {
-		ArrayList<int[]> lines = new ArrayList<int[]>();
-		ArrayList<int[]> columns = new ArrayList<int[]>();
-		
-		int yOffset = 0;
-		while (yOffset < image.getHeight()) {
-			int[] line = getLineOfWords(image, yOffset);
-			if (line[0] == -1) {
-				//no more line
-				break;
-			}
-			
-			lines.add(line);
-			yOffset = line[1] + 1;
-		}
-		
-		int xOffset = 0;
-		while (true) {
-			int[] column = getColumnOfWords(image, xOffset);
-			if (column[0] == -1) {
-				//no more column
-				break;
-			}
-			
-			columns.add(column);
-			xOffset = column[1] + 1;
-		}
-		
-		ArrayList<int[]> words = new ArrayList<int[]>();
-		for (int i = 0; i < lines.size(); i++) {
-			int[] line = lines.get(i);
-			
-			if (i >= 1) {
-				int[] prevLine = lines.get(i - 1);
-				if (line[0] - prevLine[1] > wordHeight) {
-					words.add(new int[] {-1, -1, -1, -1}); //section flag
-				}
-			}
-			
-			for (int j = 0; j < columns.size(); j++) {
-				int[] column = columns.get(j);
-				
-				int[] word = new int[] {line[0], column[0], line[1], column[1]};
-				if (!isBlankWord(image, word)) {
-					words.add(word);
-				}
-			}
-		}
-		return words;
-	}
-	
-	private static int[] getLineOfWords(BufferedImage image, int pos) {
-		int start = -1;
-		int end = -1;
-		
-		for (int i = pos; i < image.getHeight(); i++) {
+	private BufferedImage cropMargin(BufferedImage image) {
+		int top = 0;
+		for (int i = 0; i < image.getHeight(); i++) {
 			int wordPixels = 0;
 			for (int j = 0; j < image.getWidth(); j++) {
 				int gray = image.getRGB(j, i) & 0xff;
-				//FIXME: background gray is bigger than 240
-				if (gray < 240) {
+				if (gray < sBackgroundGrayThreshold) {
 					wordPixels++;
 				}
 			}
 			
-			//FIXME: pixels in word are less than 5, line belongs to background
-			if (wordPixels < 5) {
+			if (wordPixels > 0) {
+				top = i;
+				break;
+			}
+		}
+		
+		int bottom = image.getHeight() - 1;
+		for (int i = image.getHeight() - 1; i >= 0; i--) {
+			int wordPixels = 0;
+			for (int j = 0; j < image.getWidth(); j++) {
+				int gray = image.getRGB(j, i) & 0xff;
+				if (gray < sBackgroundGrayThreshold) {
+					wordPixels++;
+				}
+			}
+			
+			if (wordPixels > 0) {
+				bottom = i;
+				break;
+			}
+		}
+		
+		int left = 0;
+		for (int i = 0; i < image.getWidth(); i++) {
+			int wordPixels = 0;
+			for (int j = 0; j < image.getHeight(); j++) {
+				int gray = image.getRGB(i, j) & 0xff;
+				if (gray < sBackgroundGrayThreshold) {
+					wordPixels++;
+				}
+			}
+			
+			if (wordPixels > 0) {
+				left = i;
+				break;
+			}
+		}
+		
+		int right = image.getWidth() - 1;
+		for (int i = image.getWidth() - 1; i >= 0; i--) {
+			int wordPixels = 0;
+			for (int j = 0; j < image.getHeight(); j++) {
+				int gray = image.getRGB(i, j) & 0xff;
+				if (gray < sBackgroundGrayThreshold) {
+					wordPixels++;
+				}
+			}
+			
+			if (wordPixels > 0) {
+				right = i;
+				break;
+			}
+		}
+		
+		return image.getSubimage(left, top, right - left + 1, bottom - top + 1);
+	}
+	
+	private int predictWordWidth(BufferedImage image) {
+		Hashtable<Integer, Integer> widthStat = new Hashtable<Integer, Integer>();
+		
+		int xOffset = 0;
+		while (true) {
+			int[] column = getOneColumn(image, xOffset);
+			if (column[0] == -1) {
+				break;
+			}
+			
+			int width = column[1] - column[0] + 1;
+			int count = 1;
+			if (widthStat.containsKey(width)) {
+				count = widthStat.get(width) + 1;
+			}
+			widthStat.put(width, count);
+			
+			xOffset = column[1] + 1;
+		}
+		
+		return getMode(widthStat);
+	}
+	
+	private int[] getOneColumn(BufferedImage image, int pos) {
+		int start = -1;
+		int end = -1;
+		
+		for (int i = pos; i < image.getWidth(); i++) {
+			int wordPixels = 0;
+			for (int j = 0; j < image.getHeight(); j++) {
+				int gray = image.getRGB(i, j) & 0xff;
+				if (gray < sBackgroundGrayThreshold) {
+					wordPixels++;
+				}
+			}
+			
+			if (wordPixels < image.getHeight() / 100) {
 				if (start != -1) {
 					break;
 				}
@@ -222,22 +253,43 @@ final class Typesetter {
 		return new int[] {start, end};
 	}
 	
-	private static int[] getColumnOfWords(BufferedImage image, int pos) {
-	    int start = -1;
-	    int end = -1;
-
-	    for (int i = pos; i < image.getWidth(); i++) {
-	        int wordPixels = 0;
-	        for (int j = 0; j < image.getHeight(); j++) {
-				int gray = image.getRGB(i, j) & 0xff;
-				//FIXME: background gray is bigger than 240
-				if (gray < 240) {
+	private int predictWordHeight(BufferedImage image) {
+		Hashtable<Integer, Integer> heightStat = new Hashtable<Integer, Integer>();
+		
+		int yOffset = 0;
+		while (yOffset < image.getHeight()) {
+			int[] line = getOneLine(image, yOffset);
+			if (line[0] == -1) {
+				break;
+			}
+			
+			int height = line[1] - line[0] + 1;
+			int count = 1;
+			if (heightStat.containsKey(height)) {
+				count = heightStat.get(height) + 1;
+			}
+			heightStat.put(height, count);
+			
+			yOffset = line[1] + 1;
+		}
+		
+		return getMode(heightStat);
+	}
+	
+	private int[] getOneLine(BufferedImage image, int pos) {
+		int start = -1;
+		int end = -1;
+		
+		for (int i = pos; i < image.getHeight(); i++) {
+			int wordPixels = 0;
+			for (int j = 0; j < image.getWidth(); j++) {
+				int gray = image.getRGB(j, i) & 0xff;
+				if (gray < sBackgroundGrayThreshold) {
 					wordPixels++;
 				}
 			}
-	        
-	        //FIXME: pixels in word are less than 150, column belongs to background
-	        if (wordPixels < 150) {
+			
+			if (wordPixels < image.getWidth() / 100) {
 				if (start != -1) {
 					break;
 				}
@@ -251,22 +303,146 @@ final class Typesetter {
 					end += 1;
 				}
 			}
-	    }
-	    
-	    return new int[] {start, end};
+		}
+		
+		return new int[] {start, end};
 	}
 	
-	private static boolean isBlankWord(BufferedImage image, int[] word) {
-		for (int i = word[0]; i <= word[2]; i++) {
-			for (int j = word[1]; j <= word[3]; j++) {
-				int gray = image.getRGB(j, i) & 0xff;
-				//FIXME: background gray is bigger than 240
-				if (gray < 240) {
-					return false;
+	private int getMode(Hashtable<Integer, Integer> stat) {
+		Iterator<Map.Entry<Integer, Integer>> entryIterator = stat.entrySet().iterator();
+		
+		Map.Entry<Integer, Integer> maxCntEntry = null;
+		while (entryIterator.hasNext()) {
+			Map.Entry<Integer, Integer> entry = entryIterator.next();
+			
+			if ((maxCntEntry == null)
+				|| (entry.getValue() > maxCntEntry.getValue())
+				|| (entry.getValue() == maxCntEntry.getValue() && entry.getKey() > maxCntEntry.getKey())) {
+				maxCntEntry = entry;
+			}
+		}
+		
+		return maxCntEntry.getKey();
+	}
+	
+	private ArrayList<int[]> getWordInImage(BufferedImage image, int wordWidth, int wordHeight) {
+		ArrayList<int[]> wordList = new ArrayList<int[]>();
+		
+		ArrayList<int[]> columns = getColumns(image, wordWidth);
+		ArrayList<int[]> lines = getLines(image, wordHeight);
+		for (int i = 0; i < lines.size(); i++) {
+			int[] line = lines.get(i);
+			
+			if (i > 0) {
+				int[] prevLine = lines.get(i - 1);
+				if (line[0] - prevLine[1] > wordHeight) {
+					wordList.add(new int[] {-1, -1, -1, -1});
+				}
+			}
+			
+			for (int j = 0; j < columns.size(); j++) {
+				int[] column = columns.get(j);
+				
+				if (!isBlank(image, column, line)) {
+					wordList.add(new int[] {line[0], column[0], line[1], column[1]});
 				}
 			}
 		}
 		
-		return true;
+		return wordList;
+	}
+	
+	private ArrayList<int[]> getLines(BufferedImage image, int wordHeight) {
+		ArrayList<int[]> lines = new ArrayList<int[]>();
+		
+		int yOffset = 0;
+		while (yOffset < image.getHeight()) {
+			int[] line = getOneLine(image, yOffset);
+			if (line[0] == -1) {
+				break;
+			}
+			
+			int height = line[1] - line[0] + 1;
+			if (height < wordHeight / 4) {
+				if (!lines.isEmpty()) {
+					int[] prevLine = lines.get(lines.size() -1);
+					
+					int prevHeight = prevLine[1] - prevLine[0] + 1;
+					if (prevHeight < wordHeight) {
+						prevLine[1] = line[1];
+					}
+					else {
+						lines.add(line);
+					}					
+				}
+			}
+			else {
+				lines.add(line);
+			}			
+			
+			yOffset = line[1] + 1;
+		}
+		
+		return lines;
+	}
+	
+	private ArrayList<int[]> getColumns(BufferedImage image, int wordWidth) {
+		ArrayList<int[]> columns = new ArrayList<int[]>();
+		
+		int xOffset = 0;
+		while (xOffset < image.getWidth()) {
+			int[] column = getOneColumn(image, xOffset);
+			if (column[0] == -1) {
+				break;
+			}
+			
+			int width = column[1] - column[0] + 1;
+			if (width < wordWidth / 4) {
+				if (!columns.isEmpty()) {
+					int[] prevColumn = columns.get(columns.size() -1);
+					
+					int prevWidth = prevColumn[1] - prevColumn[0] + 1;
+					if (prevWidth < wordWidth) {
+						prevColumn[1] = column[1];
+					}
+					else {
+						columns.add(column);
+					}					
+				}
+			}
+			else {
+				columns.add(column);
+			}			
+			
+			xOffset = column[1] + 1;
+		}
+		
+		return columns;
+	}
+	
+	private boolean isBlank(BufferedImage image, int[] column, int[] line) {
+		int wordPixels = 0;
+		for (int i = line[0]; i <= line[1]; i++) {
+			for (int j = column[0]; j <= column[1]; j++) {
+				int gray = image.getRGB(j, i) & 0xff;
+				if (gray < sBackgroundGrayThreshold) {
+					wordPixels++;
+				}
+			}
+		}
+		
+		return wordPixels < 10;
+	}
+	
+	private BufferedImage createPageImage(int wordWidth, int wordHeight) {
+		int pageWidth = topMargin + (wordWidth * mWordsOfLine) + ((mWordsOfLine - 1) * space) + bottomMargin;
+		int pageHeight = leftMargin + (wordHeight * mLinesOfPage) + ((mLinesOfPage - 1) * space) + rightMargin;
+		BufferedImage pageImage = new BufferedImage(pageWidth, pageHeight, BufferedImage.TYPE_BYTE_GRAY);
+		
+		Graphics2D graphics = pageImage.createGraphics();
+		graphics.setPaint(new Color(255, 255, 255));
+		graphics.fillRect(0, 0, pageWidth, pageHeight);
+		
+		return pageImage;
 	}
 }

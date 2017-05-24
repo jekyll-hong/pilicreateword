@@ -3,14 +3,25 @@ package com.tcl.pili;
 final class Utils {
 	public static boolean DEBUG = true;
 	
-	public static File getSubFile(File dir, String name) {
+	public static File getChildFile(File file, String name) {
 		String dirPath;
 		try {
-			dirPath = dir.getCanonicalPath();
+			dirPath = file.getCanonicalPath();
+		}
+		catch (IOException e) {
+		}
+		
+		return new File(dirPath + "/" + name);
+	}
+	
+	public static File getSiblingFile(File file, String name) {
+		String dirPath;
+		try {
+			dirPath = file.getParentFile().getCanonicalPath();
 		}
 		catch (IOException e) {
 		}
 
-		return new File(dir + "/" + name)
+		return new File(dirPath + "/" + name);
 	}
 }

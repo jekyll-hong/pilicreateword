@@ -1,6 +1,6 @@
 package com.tcl.pili;
 
-final class PDFPacker {
+final class PDFPacker implements MessageHandler {
 	public PDFPacker() {
 	}
 }
