@@ -1,11 +1,23 @@
 package com.tcl.pili;
 
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.Map;
+
+import javax.imageio.ImageIO;
+
 final class Typesetter implements MessageHandler {
 	private static final int sBackgroundGrayThreshold = 240;
 	
 	public static Typesetter createForDevice(String device) {
-		if (device.equals("nexus 5")) {
-			return new Typesetter(15, 25, 3);
+		if (device.equals("nexus5")) {
+			return new Typesetter(25, 15, 2);
 		}
 		else {
 			System.err.print("unknown device " + device + "\r\n");
@@ -13,8 +25,8 @@ final class Typesetter implements MessageHandler {
 		}
 	}
 	
-	private int mLinesOfPage;
-	private int mWordsOfLine;
+	private int mLineOfPage;
+	private int mWordOfLine;
 	private int mSpace;
 	
 	private int mTopMargin;
@@ -22,35 +34,26 @@ final class Typesetter implements MessageHandler {
 	private int mLeftMargin;
 	private int mRightMargin;
 	
-	private Typesetter(int linesOfPage, int wordsOfLine, int space) {
-		mLinesOfPage = linesOfPage;
-		mWordsOfLine = wordsOfLine;
+	private Typesetter(int lineOfPage, int wordOfLine, int space) {
+		mLineOfPage = lineOfPage;
+		mWordOfLine = wordOfLine;
 		mSpace = space;
 		
-		mTopMargin = 2 * wordHeight;
-		mBottomMargin = 2 * wordHeight;
-		mLeftMargin = 2 * wordWidth;
-		mRightMargin = 2 * wordWidth;
+		mTopMargin = 50;
+		mBottomMargin = 50;
+		mLeftMargin = 50;
+		mRightMargin = 50;
 	}
 	
 	public boolean handleMessage(Message msg) {
 		if (msg.what == Message.MSG_MAKE_PAGES) {
 			File plotImageFile = (File)msg.obj;
-			BufferedImage plotImage = ImageIO.read(plotImageFile);
 			
-			BufferedImage enhancedPlotImage = preprocess(plotImage);
-			if (Utils.DEBUG) {
-				ImageIO.write(enhancedPlotImage, "jpeg", Utils.getSiblingFile(plotImageFile, "preprocessed.jpg"));
+			try {
+				onMakePages(plotImageFile);
 			}
-			
-			File pageDir = Utils.getSiblingFile(plotImageFile, "page");
-			if (!pageDir.exist()) {
-				pageDir.mkdir();
-			}
-			
-			ArrayList<BufferedImage> pageList = typeset(enhancedPlotImage);
-			for (int i = 0; i < pageList.size(); i++) {
-				ImageIO.write(image, "png", Utils.getChildFile(pageDir, i + ".png"));
+			catch (IOException e) {
+				System.err.print("make pages error, exception " + e.getMessage() + "\r\n");
 			}
 			
 			return true;
@@ -60,74 +63,97 @@ final class Typesetter implements MessageHandler {
 		}
 	}
 	
+	private void onMakePages(File plotImageFile) throws IOException {
+		BufferedImage plotImage = ImageIO.read(plotImageFile);
+		
+		plotImage = preprocess(plotImage);
+		if (Utils.DEBUG) {
+			ImageIO.write(plotImage, "png", Utils.getSiblingFile(plotImageFile, "preprocessed.png"));
+		}
+		
+		plotImage = cropMargin(plotImage);
+		if (Utils.DEBUG) {
+			ImageIO.write(plotImage, "png", Utils.getSiblingFile(plotImageFile, "typeset.png"));
+		}
+		
+		File pageDir = Utils.getSiblingFile(plotImageFile, "page");
+		if (!pageDir.exists()) {
+			pageDir.mkdir();
+		}
+		
+		ArrayList<BufferedImage> pageImageList = typeset(plotImage);
+		for (int i = 0; i < pageImageList.size(); i++) {
+			ImageIO.write(pageImageList.get(i), "png", Utils.getChildFile(pageDir, i + ".png"));
+		}
+	}
+	
 	private BufferedImage preprocess(BufferedImage src) {
 		BufferedImage dst;
 		
-		dst = ImageProcess.crop(src, 30, 1);
-		dst = ImageProcess.gray(dst);
+		dst = ImageProcess.crop(src, 30, 5);
 		dst = ImageProcess.sharpen(dst);
 		
 		return dst;
 	}
 	
 	private ArrayList<BufferedImage> typeset(BufferedImage image) {
-		BufferedImage image = cropMargin(image);
+		ArrayList<BufferedImage> pageImageList = new ArrayList<BufferedImage>();
 		
 		int wordWidth = predictWordWidth(image);
 		int wordHeight = predictWordHeight(image);
 		ArrayList<int[]> wordList = getWordInImage(image, wordWidth, wordHeight);
 		
-		boolean isNextSection = true;		
+		boolean isParagraphEnd = true;		
 		do {
 			BufferedImage pageImage = createPageImage(wordWidth, wordHeight);
 			
-			int lineCnt = mLinesOfPage;
+			int lineCnt = mLineOfPage;
 			int yOffset = mTopMargin + 1;
 			
 			do {
-				if (!isNextSection) {
+				if (!isParagraphEnd) {
 					int[] word = wordList.get(0);
 					if (word[0] == -1) {
-						words.remove(0);
-						newSection = true;
+						wordList.remove(0);
+						isParagraphEnd = true;
 					}
 				}
 				
-				int wordCnt = mWordsOfLine;
+				int wordCnt = mWordOfLine;
 				int xOffset = mLeftMargin + 1;
 				
-				if (isNextSection) {
+				if (isParagraphEnd) {
 					//indent 2 blank word
 					wordCnt -= 2;
-					xOffset += (wordWidth + mSpace) * 2;
+					xOffset += (wordWidth * 2 + mSpace);
 					
-					isNextSection = false;
+					isParagraphEnd = false;
 				}
 				
 				Graphics2D graphics = pageImage.createGraphics();
 				do {
 					int[] word = wordList.remove(0);
 					if (word[0] == -1) {
-						isNextSection = true;
+						isParagraphEnd = true;
 						break;
 					}
 					
 					BufferedImage wordImage = image.getSubimage(word[1], word[0], word[3] - word[1] + 1, word[2] - word[0] + 1);
 					graphics.drawImage(wordImage, null, xOffset, yOffset);
 					
-					xOffset += wordWidth + mSpace;
+					xOffset += (wordWidth + mSpace);
 				}
 				while ((--wordCnt > 0) && !wordList.isEmpty());
 				
-				yOffset += wordHeight + space;
+				yOffset += (wordHeight + mSpace);
 			}
 			while ((--lineCnt > 0) && !wordList.isEmpty());
 			
-			pageList.add(pageImage);
+			pageImageList.add(pageImage);
 		}
 		while (!wordList.isEmpty());
 		
-		return pageList;
+		return pageImageList;
 	}
 	
 	private BufferedImage cropMargin(BufferedImage image) {
@@ -289,7 +315,7 @@ final class Typesetter implements MessageHandler {
 				}
 			}
 			
-			if (wordPixels < image.getWidth() / 100) {
+			if (wordPixels < image.getWidth() / 200) {
 				if (start != -1) {
 					break;
 				}
@@ -435,8 +461,8 @@ final class Typesetter implements MessageHandler {
 	}
 	
 	private BufferedImage createPageImage(int wordWidth, int wordHeight) {
-		int pageWidth = topMargin + (wordWidth * mWordsOfLine) + ((mWordsOfLine - 1) * space) + bottomMargin;
-		int pageHeight = leftMargin + (wordHeight * mLinesOfPage) + ((mLinesOfPage - 1) * space) + rightMargin;
+		int pageWidth = mTopMargin + (wordWidth * mWordOfLine) + ((mWordOfLine - 1) * mSpace) + mBottomMargin;
+		int pageHeight = mLeftMargin + (wordHeight * mLineOfPage) + ((mLineOfPage - 1) * mSpace) + mRightMargin;
 		BufferedImage pageImage = new BufferedImage(pageWidth, pageHeight, BufferedImage.TYPE_BYTE_GRAY);
 		
 		Graphics2D graphics = pageImage.createGraphics();

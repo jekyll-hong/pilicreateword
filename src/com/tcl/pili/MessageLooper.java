@@ -1,10 +1,15 @@
+package com.tcl.pili;
+
+import java.util.ArrayList;
+import java.util.LinkedList;
+
 class MessageLooper extends Thread  {
 	private LinkedList<Message> mMessageQueue;
 	private Object mLock;
 	
 	private ArrayList<MessageHandler> mHandlerList;
 	
-	public MessageLooper(String storagePath) {
+	public MessageLooper() {
 		mMessageQueue = new LinkedList<Message>();
 		mLock = new Object();
 		
@@ -17,7 +22,7 @@ class MessageLooper extends Thread  {
 	
 	public void post(Message msg) {
 		synchronized (mLock) {
-			mImageQueue.add(msg);
+			mMessageQueue.add(msg);
 		}
 	}
 	
@@ -57,10 +62,12 @@ class MessageLooper extends Thread  {
 	}
 	
 	private Message getMessage() {
-		Message msg;
+		Message msg = null;
 		
 		synchronized (mLock) {
-			msg = mMessageQueue.remove();
+			if (!mMessageQueue.isEmpty()) {
+				msg = mMessageQueue.remove();
+			}
 		}
 		
 		return msg;

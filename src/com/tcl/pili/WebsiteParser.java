@@ -1,5 +1,25 @@
 package com.tcl.pili;
 
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+
+import javax.imageio.ImageIO;
+
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
 final class WebsiteParser extends Thread {
 	private static final String sWebsite = "https://pilicreateworld.tw-blog.com";
 	
@@ -8,48 +28,58 @@ final class WebsiteParser extends Thread {
 	private File mEpisodeDir;
 	
 	private HTTPClient mClient;
+	private WebsiteParseListener mListener;
 	
 	public WebsiteParser(String storageDirPath) {
-		mStorageDir = new File(storagePath);
-		if (!mStorageDir.exist()) {
+		mStorageDir = new File(storageDirPath);
+		if (!mStorageDir.exists()) {
 			mStorageDir.mkdirs();
 		}
 		
 		mClient = new HTTPClient();
-        }
+		mListener = null;
+	}
 	
 	public void setProxy(String ip, int port) {
 		Proxy httpProxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(ip, port));
 		mClient.setProxy(httpProxy);
 	}
 	
-	public void run() {
-		parseWebsiteHTML(sWebsite);
+	public void setListener(WebsiteParseListener listener) {
+		mListener = listener;
 	}
 	
-	private void parseWebsiteHTML(String websiteURL) {
+	public void run() {
+		try {
+			parseWebsiteHTML(sWebsite);
+		}
+		catch (IOException e) {
+			System.err.print("parse website exception, " + e.getMessage() + "\r\n");
+		}
+	}
+	
+	private void parseWebsiteHTML(String websiteURL) throws IOException  {
 		mClient.connect(websiteURL);
-                String mainPageURL = getMainURL(mClient.getInputStream());
+		String mainPageURL = getMainURL(mClient.getInputStream());
 		mClient.disconnect();
 		
-		if (!mainURL.isEmpty()) {
+		if (!mainPageURL.isEmpty()) {
 			parseMainHTML(mainPageURL);
-			
-			Message msg = new Message(Message.MSG_COMPLETE);
-			MessageLooper.getInstance().post(msg);
+			mListener.onParseCompleted();
 		}
 		else {
 			System.err.print("parse website error, can not find main url!\r\n");
 		}
 	}
 	
-	private String getMainURL(InputStream stream) {
+	private String getMainURL(InputStream stream) throws IOException {
 		String mainURL = "";
 		
-		Document doc = Jsoup.parse(stream, "UTF-16", sWebsite);
-		Element	body = doc.body();
-		Elements frameList = body.getElementsByTag("frame");
-                for (int i = 0; i < frameList.size(); i++) {
+		Document doc = Jsoup.parse(stream, null, sWebsite);
+		stream.close();
+		
+		Elements frameList = doc.select("frame");
+        for (int i = 0; i < frameList.size(); i++) {
 			Element frame = frameList.get(i);
 			
 			String value = frame.attr("name");
@@ -58,7 +88,7 @@ final class WebsiteParser extends Thread {
 				break;
 			}
 		}
-		
+        
 		return mainURL;
 	}
 	
@@ -67,9 +97,9 @@ final class WebsiteParser extends Thread {
 		public String name;
 	}
 	
-	private void parseMainHTML(String mainURL) {
+	private void parseMainHTML(String mainURL) throws IOException {
 		mClient.connect(mainURL);
-                ArrayList<DramaInfo> dramaList = getDramaList(mClient.getInputStream());
+		ArrayList<DramaInfo> dramaList = getDramaList(mClient.getInputStream());
 		mClient.disconnect();
 		
 		if (!dramaList.isEmpty()) {
@@ -77,15 +107,12 @@ final class WebsiteParser extends Thread {
 				DramaInfo drama = dramaList.get(i);
 				
 				mDramaDir = Utils.getChildFile(mStorageDir, drama.name);
-				if (!mDramaDir.exist()) {
+				if (!mDramaDir.exists()) {
 					mDramaDir.mkdir();
 				}
 				
-				System.out.print(drama.name + "\r\n");
 				parseDramaHTML(drama.url);
-				
-				Message msg = new Message(Message.MSG_PACK_PDF, mDramaDir);
-				MessageLooper.getInstance().post(msg);
+				mListener.onDrama(mDramaDir);
 			}
 		}
 		else {
@@ -93,17 +120,18 @@ final class WebsiteParser extends Thread {
 		}
 	}
 	
-	private ArrayList<DramaInfo> getDramaList(InputStream stream) {
+	private ArrayList<DramaInfo> getDramaList(InputStream stream) throws IOException {
 		ArrayList<DramaInfo> dramaList = new ArrayList<DramaInfo>(100);
 		
-		Document doc = Jsoup.parse(stream, "UTF-16", sWebsite);
-		Element	body = doc.body();
-		Elements anchorList = body.getElementsByTag("a");
+		Document doc = Jsoup.parse(stream, null, sWebsite);
+		stream.close();
+		
+		Elements anchorList = doc.body().getElementsByTag("a");
 		for (int i = 0; i < anchorList.size(); i++) {
 			Element anchor = anchorList.get(i);
 			
 			String value = anchor.attr("id");
-			if (!value.isEmpty() && value.startWith("info")) {
+			if (!value.isEmpty() && value.startsWith("info")) {
 				DramaInfo drama = new DramaInfo();
 				drama.url = sWebsite + "/" + anchor.attr("href");
 				drama.name = value.substring(4) + "." + getDramaName(anchor.text());
@@ -113,6 +141,7 @@ final class WebsiteParser extends Thread {
 		}
 		
 		dramaList.trimToSize();
+		
 		Collections.sort(dramaList, new Comparator<DramaInfo>() {
 			public int compare(DramaInfo drama1, DramaInfo drama2) {
 				String name1 = drama1.name;
@@ -129,6 +158,8 @@ final class WebsiteParser extends Thread {
 	}
 	
 	private String getDramaName(String text) {
+		text = Utils.convertToUTF16(text);
+		
 		int leftBracket = text.indexOf("【");
 		int rightBracket = text.lastIndexOf("】");
 		
@@ -140,9 +171,9 @@ final class WebsiteParser extends Thread {
 		public String name;
 	}
 	
-	private void parseDramaHTML(String dramaURL) {
+	private void parseDramaHTML(String dramaURL) throws IOException {
 		mClient.connect(dramaURL);
-                ArrayList<EpisodeInfo> episodeList = getEpisodeList(mClient.getInputStream());
+		ArrayList<EpisodeInfo> episodeList = getEpisodeList(mClient.getInputStream());
 		mClient.disconnect();
 		
 		if (!episodeList.isEmpty()) {
@@ -150,12 +181,12 @@ final class WebsiteParser extends Thread {
 				EpisodeInfo episode = episodeList.get(i);
 				
 				mEpisodeDir = Utils.getChildFile(mDramaDir, episode.name);
-				if (!mEpisodeDir.exist()) {
+				if (!mEpisodeDir.exists()) {
 					mEpisodeDir.mkdir();
 				}
 				
-				System.out.print(episode.name + "\r\n");
 				parseEpisodeHTML(episode.url);
+				mListener.onEpisode(Utils.getChildFile(mEpisodeDir, mEpisodeDir.getName() + ".png"));
 			}
 		}
 		else {
@@ -163,12 +194,13 @@ final class WebsiteParser extends Thread {
 		}
 	}
 	
-	private ArrayList<EpisodeInfo> getEpisodeList(InputStream stream) {
+	private ArrayList<EpisodeInfo> getEpisodeList(InputStream stream) throws IOException {
 		ArrayList<EpisodeInfo> episodeList = new ArrayList<EpisodeInfo>(100);
 		
-		Document doc = Jsoup.parse(stream, "UTF-16", sWebsite);
-		Element	body = doc.body();
-		Elements anchorList = body.getElementsByTag("a");
+		Document doc = Jsoup.parse(stream, null, sWebsite);
+		stream.close();
+		
+		Elements anchorList = doc.body().getElementsByTag("a");
 		for (int i = 0; i < anchorList.size(); i++) {
 			Element anchor = anchorList.get(i);
 			
@@ -183,6 +215,7 @@ final class WebsiteParser extends Thread {
 		}
 		
 		episodeList.trimToSize();
+		
 		Collections.sort(episodeList, new Comparator<EpisodeInfo>() {
 			public int compare(EpisodeInfo episode1, EpisodeInfo episode2) {
 				String name1 = episode1.name;
@@ -199,53 +232,42 @@ final class WebsiteParser extends Thread {
 	}
 	
 	private String getEpisodeName(String text) {
-		int start = text.indexOf(".") - 2;
-		int end = text.indexOf("&nbsp;");
-		
-		if (end < 0) {
-			return text.substring(start);
-		}
-		else {
-			return text.substring(start, end);
-		}
+		text = text.replace("\u00a0","");
+		return Utils.convertToUTF16(text);
 	}
 	
-	private void parseEpisodeHTML(String episodeURL) {
+	private void parseEpisodeHTML(String episodeURL) throws IOException {
 		mClient.connect(episodeURL);
-                ArrayList<BufferedImage> plotImageList = getPlotImageList(mClient.getInputStream());
+		ArrayList<String> plotImageList = getPlotImageList(mClient.getInputStream());
 		mClient.disconnect();
 		
 		if (!plotImageList.isEmpty()) {
 			BufferedImage plotImage = merge(plotImageList);
 			
-			File plotImageFile = Utils.getChildFile(mEpisodeDir, "剧情口白.png");
-			if (!plotImageFile.exist()) {
+			File plotImageFile = Utils.getChildFile(mEpisodeDir, mEpisodeDir.getName() + ".png");
+			if (!plotImageFile.exists()) {
 				ImageIO.write(plotImage, "png", plotImageFile);
 			}
-			
-			Message msg = new Message(Message.MSG_MAKE_PAGES, plotImage);
-			MessageLooper.getInstance().post(msg);
 		}
 		else {
 			System.err.print("parse website error, can not find any plot image!\r\n");
 		}
 	}
 	
-	private ArrayList<BufferedImage> getPlotImageList(InputStream stream) {
-		ArrayList<BufferedImage> plotImageList = new ArrayList<BufferedImage>(10);
+	private ArrayList<String> getPlotImageList(InputStream stream) throws IOException {
+		ArrayList<String> plotImageList = new ArrayList<String>(10);
 		
-		Document doc = Jsoup.parse(stream, "UTF-16", sWebsite);
-		Element	body = doc.body();
-		Elements imgList = body.getElementsByTag("img");
+		Document doc = Jsoup.parse(stream, null, sWebsite);
+		stream.close();
+		
+		Elements imgList = doc.body().getElementsByTag("img");
 		for (int i = 0; i < imgList.size(); i++) {
 			Element img = imgList.get(i);
 			
-			String value = anchor.attr("width");
+			String value = img.attr("width");
 			if (!value.isEmpty() && value.equals("760")) {
 				String plotURL = img.attr("src");
-				BufferedImage plot = ImageIO.read(new URL(plotURL));
-				
-				plotList.add(plot);
+				plotImageList.add(plotURL);
 			}
 		}
 		
@@ -254,42 +276,100 @@ final class WebsiteParser extends Thread {
 		return plotImageList;
 	}
 	
-	private BufferedImage merge(ArrayList<BufferedImage> srcList) {
-		int width = getPlotImageWidth(srcList);
-		int height = getPlotImageHeight(srcList);
-		int type = getPlotImageType(srcList);
-		
-		BufferedImage dst = new BufferedImage(width, height, type);
-		Graphics2D graphics = dst.createGraphics();
-		
-		int yOffset = 0;
-		for (int i = 0; i < plotList.size(); i++) {
-			BufferedImage src = srcList.get(i);
-			if (Utils.DEBUG) {
-				ImageIO.write(src, "jpeg", Utils.getChildFile(mEpisodeDir, i + ".jpg"));
+	private BufferedImage merge(ArrayList<String> urlList) throws IOException {
+		ArrayList<BufferedImage> imageList = new ArrayList<BufferedImage>(urlList.size());
+		for (int i = 0; i < urlList.size(); i++) {
+			File imageFile = Utils.getChildFile(mEpisodeDir, i + ".gif");
+			if (!imageFile.exists()) {
+				tryDownloadImage(urlList.get(i), imageFile);
 			}
 			
-			graphics.drawImage(src, null, 0, yOffset);
-			yOffset += src.getHeight();
+			BufferedImage image = ImageIO.read(imageFile);
+			imageList.add(image);
 		}
 		
-		return dst;
+		int width = getPlotImageWidth(imageList);
+		int height = getPlotImageHeight(imageList);
+		BufferedImage fullImage = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
+		
+		Graphics2D graphics = fullImage.createGraphics();
+		int yOffset = 0;
+		for (int i = 0; i < imageList.size(); i++) {
+			BufferedImage image = imageList.get(i);
+			graphics.drawImage(image, null, 0, yOffset);
+			yOffset += image.getHeight();
+		}
+		
+		return fullImage;
 	}
 	
-	private int getPlotImageWidth(ArrayList<BufferedImage> plotList) {
-		return plotList.get(0).getWidth();
+	private void tryDownloadImage(String url, File file) throws IOException {
+		final int maxRetryCnt = 10;
+		int retryCnt = 0;
+		
+		do {
+			if (retryCnt > 0) {
+				try {
+					Thread.sleep(2000);
+				} 
+				catch (InterruptedException e) {
+				}
+			}
+			
+			try {
+				if (downloadImage(url, file)) {
+					System.out.print(url + " downloaded\r\n");
+					break;
+				}
+			}
+			catch (IOException e) {
+			}
+		}
+		while (++retryCnt < maxRetryCnt);
+		
+		if (retryCnt == maxRetryCnt) {
+			throw new IOException();
+		}
 	}
 	
-	private int getPlotImageHeight(ArrayList<BufferedImage> plotList) {
+	private boolean downloadImage(String url, File file) throws IOException {
+		mClient.connect(url);
+		
+		InputStream in = mClient.getInputStream();
+		if (in == null) {
+			return false;
+		}
+		OutputStream out = new FileOutputStream(file);
+		
+		byte[] buf = new byte[1024];
+		while (true) {
+			int ret = in.read(buf);
+			if (ret < 0) {
+				break;
+			}
+			
+			out.write(buf, 0, ret);
+		}
+		
+		in.close();
+		out.close();
+		
+		mClient.disconnect();
+		
+		return true;
+	}
+	
+	private int getPlotImageWidth(ArrayList<BufferedImage> plotImageList) {
+		return plotImageList.get(0).getWidth();
+	}
+	
+	private int getPlotImageHeight(ArrayList<BufferedImage> plotImageList) {
 		int height = 0;
-		for (int i = 0; i < images.length; i++) {
-			height += plotList.get(i).getHeight();
+		
+		for (int i = 0; i < plotImageList.size(); i++) {
+			height += plotImageList.get(i).getHeight();
 		}
 		
 		return height;
-	}
-	
-	private int getPlotImageType(ArrayList<BufferedImage> plotList) {
-		return plotList.get(0).getType();
 	}
 }

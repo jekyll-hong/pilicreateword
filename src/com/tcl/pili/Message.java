@@ -1,4 +1,6 @@
-final class Message {
+package com.tcl.pili;
+
+class Message {
 	public static final int MSG_MAKE_PAGES = 1;
 	public static final int MSG_PACK_PDF = 2;
 	public static final int MSG_COMPLETE = 3;
