@@ -17,7 +17,7 @@ final class Typesetter implements MessageHandler {
 	
 	public static Typesetter createForDevice(String device) {
 		if (device.equals("nexus5")) {
-			return new Typesetter(25, 15, 2);
+			return new Typesetter(20, 15);
 		}
 		else {
 			System.err.print("unknown device " + device + "\r\n");
@@ -27,20 +27,24 @@ final class Typesetter implements MessageHandler {
 	
 	private int mLineOfPage;
 	private int mWordOfLine;
-	private int mSpace;
+	
+	private int mLineSpace;
+	private int mWordSpace;
 	
 	private int mTopMargin;
 	private int mBottomMargin;
 	private int mLeftMargin;
 	private int mRightMargin;
 	
-	private Typesetter(int lineOfPage, int wordOfLine, int space) {
+	private Typesetter(int lineOfPage, int wordOfLine) {
 		mLineOfPage = lineOfPage;
 		mWordOfLine = wordOfLine;
-		mSpace = space;
 		
-		mTopMargin = 50;
-		mBottomMargin = 50;
+		mLineSpace = 5;
+		mWordSpace = 2;
+		
+		mTopMargin = 30;
+		mBottomMargin = 30;
 		mLeftMargin = 50;
 		mRightMargin = 50;
 	}
@@ -125,7 +129,7 @@ final class Typesetter implements MessageHandler {
 				if (isParagraphEnd) {
 					//indent 2 blank word
 					wordCnt -= 2;
-					xOffset += (wordWidth * 2 + mSpace);
+					xOffset += (wordWidth + mWordSpace) * 2;
 					
 					isParagraphEnd = false;
 				}
@@ -141,11 +145,11 @@ final class Typesetter implements MessageHandler {
 					BufferedImage wordImage = image.getSubimage(word[1], word[0], word[3] - word[1] + 1, word[2] - word[0] + 1);
 					graphics.drawImage(wordImage, null, xOffset, yOffset);
 					
-					xOffset += (wordWidth + mSpace);
+					xOffset += (wordWidth + mWordSpace);
 				}
 				while ((--wordCnt > 0) && !wordList.isEmpty());
 				
-				yOffset += (wordHeight + mSpace);
+				yOffset += (wordHeight + mLineSpace);
 			}
 			while ((--lineCnt > 0) && !wordList.isEmpty());
 			
@@ -260,7 +264,7 @@ final class Typesetter implements MessageHandler {
 				}
 			}
 			
-			if (wordPixels < image.getHeight() / 100) {
+			if (wordPixels < image.getHeight() / 150) {
 				if (start != -1) {
 					break;
 				}
@@ -461,8 +465,8 @@ final class Typesetter implements MessageHandler {
 	}
 	
 	private BufferedImage createPageImage(int wordWidth, int wordHeight) {
-		int pageWidth = mTopMargin + (wordWidth * mWordOfLine) + ((mWordOfLine - 1) * mSpace) + mBottomMargin;
-		int pageHeight = mLeftMargin + (wordHeight * mLineOfPage) + ((mLineOfPage - 1) * mSpace) + mRightMargin;
+		int pageWidth = mLeftMargin + (wordWidth * mWordOfLine) + ((mWordOfLine - 1) * mWordSpace) + mRightMargin;
+		int pageHeight = mTopMargin + (wordHeight * mLineOfPage) + ((mLineOfPage - 1) * mLineSpace) + mBottomMargin;
 		BufferedImage pageImage = new BufferedImage(pageWidth, pageHeight, BufferedImage.TYPE_BYTE_GRAY);
 		
 		Graphics2D graphics = pageImage.createGraphics();

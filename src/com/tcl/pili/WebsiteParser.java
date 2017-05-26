@@ -185,8 +185,11 @@ final class WebsiteParser extends Thread {
 					mEpisodeDir.mkdir();
 				}
 				
-				parseEpisodeHTML(episode.url);
-				mListener.onEpisode(Utils.getChildFile(mEpisodeDir, mEpisodeDir.getName() + ".png"));
+				File dramaPDF = Utils.getChildFile(mDramaDir, mDramaDir.getName() + ".pdf");
+				if (!dramaPDF.exists()) {
+					parseEpisodeHTML(episode.url);
+					mListener.onEpisode(Utils.getChildFile(mEpisodeDir, mEpisodeDir.getName() + ".png"));
+				}
 			}
 		}
 		else {

@@ -66,6 +66,7 @@ final class PDFPacker implements MessageHandler {
 			index.name = episode.getName();
 			index.number = pageNumber;
 			index.pages = pageList.toArray(new File[pageList.size()]);
+			indexList.add(index);
 
 			pageNumber += pageList.size();
 		}
@@ -127,17 +128,24 @@ final class PDFPacker implements MessageHandler {
 		
 		Document document = new Document(pdf);
 		
-		PdfOutline outline = pdf.getOutlines(false);
+		PdfOutline root = pdf.getOutlines(false);
+		PdfOutline content = root.addOutline("目录");
+		
 		for (int i = 0; i < indexList.size(); i++) {
 			ChapterIndex index = indexList.get(i);
 			
-			outline = outline.addOutline(index.name);
-			outline.addDestination(createDestination(index.number));
+			String destination = String.format("title%d", index.number);
+			PdfOutline episode = content.addOutline(index.name);
+			episode.addDestination(PdfDestination.makeDestination(new PdfString(destination)));
 			
 			File[] pageOfChapter = index.pages;
 			for (int j = 0; j < pageOfChapter.length; j++) {
 				String pageImagePath = pageOfChapter[j].getPath();
 				Image image = new Image(ImageDataFactory.create(pageImagePath));
+				
+				if (j == 0) {
+					image.setDestination(destination);
+				}
 				
 				pdf.addNewPage(new PageSize(image.getImageWidth(), image.getImageHeight()));
 				document.add(image);
@@ -145,11 +153,5 @@ final class PDFPacker implements MessageHandler {
 		}
 		
 		document.close();			
-	}
-	
-	private PdfDestination createDestination(int pageNumber) {
-		String content = String.format("title%04d", pageNumber);
-		
-		return PdfDestination.makeDestination(new PdfString(content));
 	}
 }
