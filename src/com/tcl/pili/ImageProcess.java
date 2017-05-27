@@ -19,4 +19,17 @@ final class ImageProcess {
 		BufferedImageOp op = new ConvolveOp(kernel, ConvolveOp.EDGE_NO_OP, null);
 		return op.filter(src, null);
 	}
+	
+	public static int[] getHistogram(BufferedImage src) {
+		int[] histogram = new int[256];
+
+		for (int y = 0; y < src.getHeight(); y++) {
+			for (int x = 0; x < src.getWidth(); x++) {
+				int gray = src.getRGB(x, y) & 0xff;
+				histogram[gray]++;
+			}
+		}
+
+		return histogram;
+	}
 }
