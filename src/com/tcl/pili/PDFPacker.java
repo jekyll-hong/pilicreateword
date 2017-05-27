@@ -25,13 +25,15 @@ final class PDFPacker implements MessageHandler {
 		if (msg.what == Message.MSG_PACK_PDF) {
 			File dramaDir = (File)msg.obj;
 			
+			File dramaPDF = Utils.getChildFile(dramaDir, dramaDir.getName() + ".pdf");
+			
 			try {
-				onPackPDF(dramaDir);
+				onPackPDF(dramaDir, dramaPDF);
 			}
 			catch (IOException e) {
 				System.err.print("pack pdf error, exception " + e.getMessage() + "\r\n");
 			}
-			
+
 			return true;
 		}
 		else {
@@ -39,11 +41,8 @@ final class PDFPacker implements MessageHandler {
 		}
 	}
 	
-	private void onPackPDF(File dramaDir) throws IOException {
-		File dramaPDF = Utils.getChildFile(dramaDir, dramaDir.getName() + ".pdf");
-		if (!dramaPDF.exists()) {
-			pack(dramaPDF.getPath(), prepareChapterIndex(dramaDir));
-		}
+	private void onPackPDF(File dramaDir, File dramaPDF) throws IOException {
+		pack(dramaPDF.getPath(), prepareChapterIndex(dramaDir));
 	}
 	
 	private class ChapterIndex {

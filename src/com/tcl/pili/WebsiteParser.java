@@ -112,7 +112,7 @@ final class WebsiteParser extends Thread {
 				}
 				
 				File dramaPDF = Utils.getChildFile(mDramaDir, mDramaDir.getName() + ".pdf");
-				if (!dramaPDF.exists()) {
+				if (!dramaPDF.exists() || Utils.OVERRIDE) {
 					parseDramaHTML(drama.url);
 					mListener.onDrama(mDramaDir);
 				}
@@ -188,8 +188,11 @@ final class WebsiteParser extends Thread {
 					mEpisodeDir.mkdir();
 				}
 				
-				parseEpisodeHTML(episode.url);
-				mListener.onEpisode(Utils.getChildFile(mEpisodeDir, mEpisodeDir.getName() + ".png"));
+				File pageDir = Utils.getChildFile(mEpisodeDir, "page");
+				if (!pageDir.exists() || Utils.OVERRIDE) {
+					parseEpisodeHTML(episode.url);
+					mListener.onEpisode(Utils.getChildFile(mEpisodeDir, mEpisodeDir.getName() + ".png"));
+				}
 			}
 		}
 		else {

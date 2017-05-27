@@ -5,7 +5,8 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 
 final class Utils {
-	public static boolean DEBUG = true;
+	public static boolean DEBUG = false;
+	public static boolean OVERRIDE = false;
 	
 	public static File getChildFile(File file, String name) {
 		String dirPath = "";

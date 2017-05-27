@@ -13,7 +13,7 @@ import java.util.Map;
 import javax.imageio.ImageIO;
 
 final class Typesetter implements MessageHandler {
-	private static final int sBackgroundGrayThreshold = 240;
+	private static final int sBackgroundGrayThreshold = 160;
 	
 	public static Typesetter createForDevice(String device) {
 		if (device.equals("nexus5")) {
@@ -53,8 +53,13 @@ final class Typesetter implements MessageHandler {
 		if (msg.what == Message.MSG_MAKE_PAGES) {
 			File plotImageFile = (File)msg.obj;
 			
+			File pageDir = Utils.getSiblingFile(plotImageFile, "page");
+			if (!pageDir.exists()) {
+				pageDir.mkdir();
+			}
+			
 			try {
-				onMakePages(plotImageFile);
+				onMakePages(plotImageFile, pageDir);
 			}
 			catch (IOException e) {
 				System.err.print("make pages error, exception " + e.getMessage() + "\r\n");
@@ -67,7 +72,7 @@ final class Typesetter implements MessageHandler {
 		}
 	}
 	
-	private void onMakePages(File plotImageFile) throws IOException {
+	private void onMakePages(File plotImageFile, File pageDir) throws IOException {
 		BufferedImage plotImage = ImageIO.read(plotImageFile);
 		
 		plotImage = preprocess(plotImage);
@@ -78,11 +83,6 @@ final class Typesetter implements MessageHandler {
 		plotImage = cropMargin(plotImage);
 		if (Utils.DEBUG) {
 			ImageIO.write(plotImage, "png", Utils.getSiblingFile(plotImageFile, "typeset.png"));
-		}
-		
-		File pageDir = Utils.getSiblingFile(plotImageFile, "page");
-		if (!pageDir.exists()) {
-			pageDir.mkdir();
 		}
 		
 		ArrayList<BufferedImage> pageImageList = typeset(plotImage);
@@ -264,7 +264,7 @@ final class Typesetter implements MessageHandler {
 				}
 			}
 			
-			if (wordPixels < image.getHeight() / 150) {
+			if (wordPixels < 100) {
 				if (start != -1) {
 					break;
 				}
@@ -319,7 +319,7 @@ final class Typesetter implements MessageHandler {
 				}
 			}
 			
-			if (wordPixels < image.getWidth() / 200) {
+			if (wordPixels < 5) {
 				if (start != -1) {
 					break;
 				}
@@ -461,7 +461,7 @@ final class Typesetter implements MessageHandler {
 			}
 		}
 		
-		return wordPixels < 10;
+		return wordPixels == 0;
 	}
 	
 	private BufferedImage createPageImage(int wordWidth, int wordHeight) {
