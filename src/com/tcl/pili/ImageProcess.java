@@ -1,5 +1,6 @@
 package com.tcl.pili;
 
+import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.awt.image.BufferedImageOp;
 import java.awt.image.ConvolveOp;
@@ -20,7 +21,29 @@ final class ImageProcess {
 		return op.filter(src, null);
 	}
 	
-	public static int[] getHistogram(BufferedImage src) {
+	public static BufferedImage binarization(BufferedImage src) {
+		int[] histogram = getHistogram(src);
+		int threshold = 200; //TODO: calculate threshold by histogram
+		
+		for (int i = 0; i < src.getHeight(); i++) {
+			for (int j = 0; j < src.getWidth(); j++) {
+				int gray = src.getRGB(j, i) & 0xff;
+				
+				if (gray <= threshold) {
+					gray = 0;
+				}
+				else {
+					gray = 255;
+				}
+				
+				src.setRGB(j, i, new Color(gray, gray, gray).getRGB());
+			}
+		}
+		
+		return src;
+	}
+	
+	private static int[] getHistogram(BufferedImage src) {
 		int[] histogram = new int[256];
 
 		for (int y = 0; y < src.getHeight(); y++) {
