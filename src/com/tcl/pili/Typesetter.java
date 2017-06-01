@@ -100,12 +100,42 @@ final class Typesetter implements MessageHandler {
 		return dst;
 	}
 	
+	private class Rect {
+		public int top;
+		public int left;
+		public int bottom;
+		public int right;
+		
+		public Rect() {
+			top = 0;
+			left = 0;
+			bottom = top;
+			right = left;
+		}
+		
+		public Rect(int top, int left, int bottom, int right) {
+			this.top = top;
+			this.left = left;
+			this.bottom = bottom;
+			this.right = right;
+		}
+		
+		public boolean isValid() {
+			if ((bottom - top > 0) && (right - left > 0)) {
+				return true;
+			}
+			else {
+				return false;
+			}
+		}
+	}
+	
 	private ArrayList<BufferedImage> typeset(BufferedImage image) {
 		ArrayList<BufferedImage> pageImageList = new ArrayList<BufferedImage>();
 		
 		int wordWidth = predictWordWidth(image);
 		int wordHeight = predictWordHeight(image);
-		ArrayList<int[]> wordList = getWordInImage(image, wordWidth, wordHeight);
+		ArrayList<Rect> wordList = getWordInImage(image, wordWidth, wordHeight);
 		
 		boolean isParagraphEnd = true;		
 		do {
@@ -116,8 +146,8 @@ final class Typesetter implements MessageHandler {
 			
 			do {
 				if (!isParagraphEnd) {
-					int[] word = wordList.get(0);
-					if (word[0] == -1) {
+					Rect word = wordList.get(0);
+					if (!word.isValid()) {
 						wordList.remove(0);
 						isParagraphEnd = true;
 					}
@@ -136,13 +166,13 @@ final class Typesetter implements MessageHandler {
 				
 				Graphics2D graphics = pageImage.createGraphics();
 				do {
-					int[] word = wordList.remove(0);
-					if (word[0] == -1) {
+					Rect word = wordList.remove(0);
+					if (!word.isValid()) {
 						isParagraphEnd = true;
 						break;
 					}
 					
-					BufferedImage wordImage = image.getSubimage(word[1], word[0], word[3] - word[1] + 1, word[2] - word[0] + 1);
+					BufferedImage wordImage = image.getSubimage(word.left, word.top, word.right - word.left + 1, word.bottom - word.top + 1);
 					graphics.drawImage(wordImage, null, xOffset, yOffset);
 					
 					xOffset += (wordWidth + mWordSpace);
@@ -319,7 +349,7 @@ final class Typesetter implements MessageHandler {
 				}
 			}
 			
-			if (wordPixels < 5) {
+			if (wordPixels < 3) {
 				if (start != -1) {
 					break;
 				}
@@ -355,8 +385,8 @@ final class Typesetter implements MessageHandler {
 		return maxCntEntry.getKey();
 	}
 	
-	private ArrayList<int[]> getWordInImage(BufferedImage image, int wordWidth, int wordHeight) {
-		ArrayList<int[]> wordList = new ArrayList<int[]>();
+	private ArrayList<Rect> getWordInImage(BufferedImage image, int wordWidth, int wordHeight) {
+		ArrayList<Rect> wordList = new ArrayList<Rect>();
 		
 		ArrayList<int[]> columns = getColumns(image, wordWidth);
 		ArrayList<int[]> lines = getLines(image, wordHeight);
@@ -366,7 +396,7 @@ final class Typesetter implements MessageHandler {
 			if (i > 0) {
 				int[] prevLine = lines.get(i - 1);
 				if (line[0] - prevLine[1] > wordHeight) {
-					wordList.add(new int[] {-1, -1, -1, -1});
+					wordList.add(new Rect());
 				}
 			}
 			
@@ -374,7 +404,7 @@ final class Typesetter implements MessageHandler {
 				int[] column = columns.get(j);
 				
 				if (!isBlank(image, column, line)) {
-					wordList.add(new int[] {line[0], column[0], line[1], column[1]});
+					wordList.add(new Rect(line[0], column[0], line[1], column[1]));
 				}
 			}
 		}

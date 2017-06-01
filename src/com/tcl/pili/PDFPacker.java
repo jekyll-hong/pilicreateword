@@ -90,7 +90,22 @@ final class PDFPacker implements MessageHandler {
 				String name2 = episode2.getName();
 				String serialNumber2 = name2.substring(0, name2.indexOf("."));
 				
-				return Integer.parseInt(serialNumber1) - Integer.parseInt(serialNumber2);
+				int n1, n2;
+				try {
+					try {
+						n1 = Integer.parseInt(serialNumber1);
+					}
+					catch (NumberFormatException e) {
+						return -1;
+					}
+					
+					n2 = Integer.parseInt(serialNumber2);
+				}
+				catch (NumberFormatException e) {
+					return 1;
+				}
+				
+				return n1 - n2;
 			}
 		});
 		
