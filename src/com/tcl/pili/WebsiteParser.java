@@ -50,12 +50,27 @@ final class WebsiteParser extends Thread {
 	}
 	
 	public void run() {
-		try {
-			parseWebsiteHTML(sWebsite);
+		int retryCnt = 0;
+		
+		do {
+			if (retryCnt > 0) {
+				try {
+					Thread.sleep(2000);
+				} 
+				catch (InterruptedException e) {
+				}
+			}
+			
+			try {
+				parseWebsiteHTML(sWebsite);
+				break;
+			}
+			catch (IOException e) {
+				System.err.print("parse website exception, " + e.getMessage() + "\r\n");
+				retryCnt++;
+			}
 		}
-		catch (IOException e) {
-			System.err.print("parse website exception, " + e.getMessage() + "\r\n");
-		}
+		while (retryCnt < 10);
 	}
 	
 	private void parseWebsiteHTML(String websiteURL) throws IOException  {
@@ -65,6 +80,7 @@ final class WebsiteParser extends Thread {
 		
 		if (!mainPageURL.isEmpty()) {
 			parseMainHTML(mainPageURL);
+			
 			mListener.onParseCompleted();
 		}
 		else {
@@ -226,11 +242,25 @@ final class WebsiteParser extends Thread {
 			public int compare(EpisodeInfo episode1, EpisodeInfo episode2) {
 				String name1 = episode1.name;
 				String serialNumber1 = name1.substring(0, name1.indexOf("."));
-				
 				String name2 = episode2.name;
 				String serialNumber2 = name2.substring(0, name2.indexOf("."));
 				
-				return Integer.parseInt(serialNumber1) - Integer.parseInt(serialNumber2);
+				int n1, n2;
+				try {
+					try {
+						n1 = Integer.parseInt(serialNumber1);
+					}
+					catch (NumberFormatException e) {
+						return -1;
+					}
+					
+					n2 = Integer.parseInt(serialNumber2);
+				}
+				catch (NumberFormatException e) {
+					return 1;
+				}
+				
+				return n1 - n2;
 			}
 		});
 		
@@ -286,7 +316,7 @@ final class WebsiteParser extends Thread {
 		ArrayList<BufferedImage> imageList = new ArrayList<BufferedImage>(urlList.size());
 		for (int i = 0; i < urlList.size(); i++) {
 			File imageFile = Utils.getChildFile(mEpisodeDir, i + ".gif");
-			if (!imageFile.exists()) {
+			if (!imageFile.exists() || Utils.OVERRIDE) {
 				tryDownloadImage(urlList.get(i), imageFile);
 			}
 			
