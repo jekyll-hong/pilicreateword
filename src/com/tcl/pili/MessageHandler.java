@@ -1,5 +1,5 @@
 package com.tcl.pili;
 
-public interface MessageHandler {
+interface MessageHandler {
 	boolean handleMessage(Message msg);
 }

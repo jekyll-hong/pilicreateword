@@ -2,7 +2,7 @@ package com.tcl.pili;
 
 import java.io.File;
 
-final class Plot implements ImageDownloader.OnImageLoadedListener {
+final class Plot implements OnImageDownloadListener {
 	private Episode episode;
 	private String url;
 	
@@ -19,21 +19,25 @@ final class Plot implements ImageDownloader.OnImageLoadedListener {
 		return url.substring(url.lastIndexOf("/") + 1);
 	}
 	
-	public void maybeDownload() {	
+	public void maybeDownload() {
 		if (!image.exists()) {
-			Message msg = new Message(Message.MSG_DOWNLOAD_IMAGE, new ImageDownloader.Parameter(url, image, this));
+			Message msg = new Message(Message.MSG_DOWNLOAD_IMAGE, new DownloadImage(url, image, this));
 			MessageLooper.getInstance().post(msg);
 		}
 		else {
-			episode.notify();
+			episode.notifyPlotDone();
 		}
 	}
 	
 	public void onImageDownload() {
-		episode.notify();
+		episode.notifyPlotDone();
 	}
 	
 	public void onError() {
 		System.err.print("download plot image error!\r\n");
+	}
+	
+	public File getImage() {
+		return image;
 	}
 }

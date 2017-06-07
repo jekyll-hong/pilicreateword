@@ -4,12 +4,22 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 
 class MessageLooper extends Thread  {
+	private static MessageLooper sInstance = null;
+	
+	public static MessageLooper getInstance() {
+		if (sInstance == null) {
+			sInstance = new MessageLooper();
+		}
+		
+		return sInstance;
+	}
+	
 	private LinkedList<Message> mMessageQueue;
 	private Object mLock;
 	
 	private ArrayList<MessageHandler> mHandlerList;
 	
-	public MessageLooper() {
+	private MessageLooper() {
 		mMessageQueue = new LinkedList<Message>();
 		mLock = new Object();
 		

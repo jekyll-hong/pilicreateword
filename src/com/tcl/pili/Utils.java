@@ -5,9 +5,6 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 
 final class Utils {
-	public static boolean DEBUG = false;
-	public static boolean OVERRIDE = false;
-	
 	public static File getChildFile(File file, String name) {
 		String dirPath = "";
 		try {
@@ -16,17 +13,6 @@ final class Utils {
 		catch (IOException e) {
 		}
 		
-		return new File(dirPath + "/" + name);
-	}
-	
-	public static File getSiblingFile(File file, String name) {
-		String dirPath = "";
-		try {
-			dirPath = file.getParentFile().getCanonicalPath();
-		}
-		catch (IOException e) {
-		}
-
 		return new File(dirPath + "/" + name);
 	}
 	
@@ -40,5 +26,16 @@ final class Utils {
 		}
 		
 		return out;
+	}
+	
+	public static int getSerialNumber(String name) {
+		String serialNumber = name.substring(0, name.indexOf("."));
+		
+		try {
+			return Integer.parseInt(serialNumber);
+		}
+		catch (NumberFormatException e) {
+			return 0;
+		}
 	}
 }

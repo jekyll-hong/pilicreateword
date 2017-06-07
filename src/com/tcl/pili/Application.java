@@ -1,31 +1,59 @@
 package com.tcl.pili;
 
-public class Application {
-	private static boolean sUseProxy = false;
+import java.io.File;
+
+public class Application implements MessageHandler {
+	private WebsiteParser websiteParser;
+	
+	public Application(String storageDirPath) {
+		File storageDir = new File(storageDirPath);
+		if (!storageDir.exists()) {
+			storageDir.mkdirs();
+		}
+		
+		websiteParser = new WebsiteParser(storageDir);
+	}
+	
+	public boolean handleMessage(Message msg) {
+		switch (msg.what) {
+	    	case Message.MSG_START: {
+	    		websiteParser.parse();
+	    		break;
+	    	}
+			case Message.MSG_LOAD_WEBPAGE: {
+				break;
+			}
+			case Message.MSG_DOWNLOAD_IMAGE: {
+				break;
+			}
+			case Message.MSG_TYPESET: {
+				break;
+			}
+			case Message.MSG_PACK_PDF: {
+				break;
+			}
+			case Message.MSG_COMPLETE: {
+				break;
+			}
+			default: {
+				return false;
+			}
+		}
+		
+		return true;
+	}
 	
 	public static void main(String[] args) {
-		if (args.length < 2) {
-			System.err.print("no storage path or target device\r\n");
+		if (args.length < 1) {
+			System.err.print("no storage path\r\n");
 			return;
 		}
 		
-		String storageDirPath = args[0];
-		String targetDevice = args[1];
-		
-		MessageLooper looper = new MessageLooper();
-		looper.registerHandler(Typesetter.createForDevice(targetDevice));
-		looper.registerHandler(new PDFPacker());
+		MessageLooper looper = MessageLooper.getInstance();
+		looper.registerHandler(new Application(args[0]));
 		looper.start();
 		
-		WebsiteParser websiteParser = new WebsiteParser(storageDirPath);
-		websiteParser.setListener(new WebsiteParseListenerImpl(looper));
-		if (sUseProxy) {
-			websiteParser.setProxy("127.0.0.1", 37689);
-		}
-		websiteParser.start();
-		
 		try {
-			websiteParser.join();
 			looper.join();
 		}
 		catch (InterruptedException e) {

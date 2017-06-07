@@ -1,5 +1,7 @@
 package com.tcl.pili;
 
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
@@ -8,6 +10,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.Executor;
+
+import javax.imageio.ImageIO;
 
 import com.itextpdf.io.image.ImageDataFactory;
 import com.itextpdf.kernel.geom.PageSize;
@@ -20,25 +25,81 @@ import com.itextpdf.kernel.pdf.navigation.PdfDestination;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.element.Image;
 
-final class PDFPacker implements MessageHandler {
+final class PDFPacker extends MessageHandlerImpl {
+	public PDFPacker(Executor executor) {
+		super(executor);
+	}
+	
+	public interface OnPackCompleteListener {
+		public void onPackComplete(File pdf);
+	}
+	
+	static public class Parameter {
+		public ArrayList<BufferedImage> pageImageList;
+		public File pdf;
+		public OnPackCompleteListener listener;
+		
+		public Parameter(ArrayList<BufferedImage> pageImageList, File pdf, OnPackCompleteListener listener) {
+			this.pageImageList = pageImageList;
+			this.pdf = pdf;
+			this.listener = listener;
+		}
+	}
+	
 	public boolean handleMessage(Message msg) {
-		if (msg.what == Message.MSG_PACK_PDF) {
-			File dramaDir = (File)msg.obj;
-			
-			File dramaPDF = Utils.getChildFile(dramaDir, dramaDir.getName() + ".pdf");
-			
+		switch (msg.what) {
+			case Message.MSG_PACK_PDF: {
+				Parameter param = (Parameter)msg.obj;
+				execute(new PackJob(param));
+				break;
+			}
+			default: {
+				return false;
+			}
+		}
+		
+		return true;
+	}
+	
+	private class PackJob implements Runnable {
+		private Parameter param;
+		
+		public PackJob(Parameter param) {
+			this.param = param;
+		}
+		
+		public void run() {
 			try {
-				onPackPDF(dramaDir, dramaPDF);
+				PdfDocument pdf = new PdfDocument(new PdfWriter(param.pdf.getPath()));
+				
+				Document document = new Document(pdf);
+				for (int i = 0; i < param.pageImageList.size(); i++) {
+					byte[] imageData = getBMPData(param.pageImageList.get(i));
+					Image image = new Image(ImageDataFactory.create(imageData));
+					
+					pdf.addNewPage(new PageSize(image.getImageWidth(), image.getImageHeight()));
+					document.add(image);
+				}
+				document.close();
+				
+				pdf.close();
 			}
 			catch (IOException e) {
-				System.err.print("pack pdf error, exception " + e.getMessage() + "\r\n");
 			}
-
-			return true;
+			
+			param.listener.onPackComplete(param.pdf);
 		}
-		else {
-			return false;
-		}
+	}
+	
+	private byte[] getBMPData(BufferedImage image) throws IOException {
+		byte[] data;
+		
+		ByteArrayOutputStream imageOut = new ByteArrayOutputStream();
+		ImageIO.write(image, "BMP", imageOut);
+		data = imageOut.toByteArray();
+		imageOut.close();
+		
+		return data;
 	}
 	
 	private void onPackPDF(File dramaDir, File dramaPDF) throws IOException {

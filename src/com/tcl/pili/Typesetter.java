@@ -3,101 +3,74 @@ package com.tcl.pili;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.Executor;
 
-import javax.imageio.ImageIO;
-
-final class Typesetter implements MessageHandler {
+final class Typesetter extends MessageHandlerImpl {
 	private static final int sBackgroundGrayThreshold = 160;
 	
-	public static Typesetter createForDevice(String device) {
-		if (device.equals("nexus5")) {
-			return new Typesetter(20, 15);
-		}
-		else {
-			System.err.print("unknown device " + device + "\r\n");
-			return null;
-		}
+	private final int mLineOfPage = 15;
+	private final int mWordOfLine = 20;
+	
+	private final int mLineSpace = 5;
+	private final int mWordSpace = 2;
+	
+	private final int mTopMargin = 30;
+	private final int mBottomMargin = 30;
+	private final int mLeftMargin = 50;
+	private final int mRightMargin = 50;
+	
+	public Typesetter(Executor executor) {
+		super(executor);
 	}
 	
-	private int mLineOfPage;
-	private int mWordOfLine;
+	public interface OnTypesetCompleteListener {
+		public void onTypesetComplete(ArrayList<BufferedImage> pageImageList);
+	}
 	
-	private int mLineSpace;
-	private int mWordSpace;
-	
-	private int mTopMargin;
-	private int mBottomMargin;
-	private int mLeftMargin;
-	private int mRightMargin;
-	
-	private Typesetter(int lineOfPage, int wordOfLine) {
-		mLineOfPage = lineOfPage;
-		mWordOfLine = wordOfLine;
+	static public class Parameter {
+		public BufferedImage plotImage;
+		public OnTypesetCompleteListener listener;
 		
-		mLineSpace = 5;
-		mWordSpace = 2;
-		
-		mTopMargin = 30;
-		mBottomMargin = 30;
-		mLeftMargin = 50;
-		mRightMargin = 50;
+		public Parameter(BufferedImage plotImage, OnTypesetCompleteListener listener) {
+			this.plotImage = plotImage;
+			this.listener = listener;
+		}
 	}
 	
 	public boolean handleMessage(Message msg) {
-		if (msg.what == Message.MSG_MAKE_PAGES) {
-			File plotImageFile = (File)msg.obj;
-			
-			File pageDir = Utils.getSiblingFile(plotImageFile, "page");
-			if (!pageDir.exists()) {
-				pageDir.mkdir();
+		switch (msg.what) {
+			case Message.MSG_TYPESET: {
+				Parameter param = (Parameter)msg.obj;
+				execute(new TypesetJob(param));
+				break;
 			}
-			
-			try {
-				onMakePages(plotImageFile, pageDir);
+			default: {
+				return false;
 			}
-			catch (IOException e) {
-				System.err.print("make pages error, exception " + e.getMessage() + "\r\n");
-			}
-			
-			return true;
 		}
-		else {
-			return false;
-		}
+		
+		return true;
 	}
 	
-	private void onMakePages(File plotImageFile, File pageDir) throws IOException {
-		BufferedImage plotImage = ImageIO.read(plotImageFile);
+	private class TypesetJob implements Runnable {
+		private Parameter param;
 		
-		plotImage = preprocess(plotImage);
-		if (Utils.DEBUG) {
-			ImageIO.write(plotImage, "png", Utils.getSiblingFile(plotImageFile, "preprocessed.png"));
+		public TypesetJob(Parameter param) {
+			this.param = param;
 		}
 		
-		plotImage = cropMargin(plotImage);
-		if (Utils.DEBUG) {
-			ImageIO.write(plotImage, "png", Utils.getSiblingFile(plotImageFile, "typeset.png"));
-		}
-		
-		ArrayList<BufferedImage> pageImageList = typeset(plotImage);
-		for (int i = 0; i < pageImageList.size(); i++) {
-			ImageIO.write(pageImageList.get(i), "png", Utils.getChildFile(pageDir, i + ".png"));
+		public void run() {
+			param.listener.onTypesetComplete(typeset(param.plotImage));
 		}
 	}
 	
 	private BufferedImage preprocess(BufferedImage src) {
-		BufferedImage dst;
-		
-		dst = ImageProcess.crop(src, 30, 5);
-		dst = ImageProcess.sharpen(dst);
-		
-		return dst;
+		BufferedImage temp = ImageProcess.grayScale(src);
+		return ImageProcess.sharpen(temp);
 	}
 	
 	private class Rect {
@@ -130,9 +103,10 @@ final class Typesetter implements MessageHandler {
 		}
 	}
 	
-	private ArrayList<BufferedImage> typeset(BufferedImage image) {
+	private ArrayList<BufferedImage> typeset(BufferedImage src) {
 		ArrayList<BufferedImage> pageImageList = new ArrayList<BufferedImage>();
 		
+		BufferedImage image = cropMargin(src);
 		int wordWidth = predictWordWidth(image);
 		int wordHeight = predictWordHeight(image);
 		ArrayList<Rect> wordList = getWordInImage(image, wordWidth, wordHeight);

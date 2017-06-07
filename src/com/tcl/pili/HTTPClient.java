@@ -3,30 +3,28 @@ package com.tcl.pili;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.URL;
 
 final class HTTPClient {
-	private Proxy mProxy;
+	private static final boolean sUseProxy = false;
+	
 	private HttpURLConnection mConnection;
 	
 	public HTTPClient() {
-		mProxy = null;
 		mConnection = null;
 	}
 	
-	public void setProxy(Proxy proxy) {
-		mProxy = proxy;
-	}
-	
-	public void connect(String url) throws IOException {
+	public InputStream connect(String url) throws IOException {
 		URL httpURL = new URL(url);
 		
-		if (mProxy == null) {
+		if (!sUseProxy) {
 			mConnection = (HttpURLConnection)httpURL.openConnection();
 		}
 		else {
-			mConnection = (HttpURLConnection)httpURL.openConnection(mProxy);
+			Proxy httpProxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress("127.0.0.1", 37689));
+			mConnection = (HttpURLConnection)httpURL.openConnection(httpProxy);
 		}
 		
 		mConnection.setConnectTimeout(2000);
@@ -41,16 +39,23 @@ final class HTTPClient {
 				System.out.print("redirect to " + redirectURL + "\r\n");
 				
 				disconnect();
-				connect(redirectURL);
+				return connect(redirectURL);
 			}
 			else if (status == -1) {
-				disconnect();
 				System.err.print("connect to " + url + " fail, retry later\r\n");
+				
+				disconnect();
+				return null;
 			}
 			else {
-				disconnect();
 				System.err.print("connect to " + url + " error, response code is " + status + "\r\n");
+				
+				disconnect();
+				return null;
 			}
+		}
+		else {
+			return mConnection.getInputStream();
 		}
 	}
 	
@@ -58,15 +63,6 @@ final class HTTPClient {
 		if (mConnection != null) {
 			mConnection.disconnect();
 			mConnection = null;
-		}
-	}
-	
-	public InputStream getInputStream() throws IOException {
-		if (mConnection != null) {
-			return mConnection.getInputStream();
-		}
-		else {
-			return null;
 		}
 	}
 }
