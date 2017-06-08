@@ -15,7 +15,7 @@ final class Episode implements OnTextTypesetListener {
 	private ArrayList<Plot> plotList;
 	private int downloadedCnt;
 	
-	public File[] pages;
+	private File[] pages;
 	
 	public Episode(Drama drama, String url, String name) {
 		this.drama = drama;
@@ -61,7 +61,9 @@ final class Episode implements OnTextTypesetListener {
 	
 	public synchronized void notifyPlotDone() {
 		if (++downloadedCnt == plotList.size()) {
-			Message msg = new Message(Message.MSG_TYPESET, new TypesetText(merge(), this));
+			System.out.print("all plot in " + name + " are done!\r\n");
+			
+			Message msg = new Message(Message.MSG_TYPESET_TEXT, new TypesetText(merge(), this));
 			MessageLooper.getInstance().post(msg);
 		}
 	}
@@ -70,13 +72,20 @@ final class Episode implements OnTextTypesetListener {
 		BufferedImage[] plotImages = new BufferedImage[plotList.size()];
 		for (int i = 0; i < plotList.size(); i++) {
 			try {
-				plotImages[i] = ImageIO.read(plotList.get(i).getImage());
+				BufferedImage src = ImageIO.read(plotList.get(i).getImage());
+				plotImages[i] = preprocess(src);
 			}
 			catch (IOException e) {
 			}
 		}
 		
-		return ImageProcess.merge(plotImages);
+		BufferedImage plotImage = ImageProcess.merge(plotImages);
+		return plotImage.getSubimage(0, 30, plotImage.getWidth(), plotImage.getHeight() - 31);
+	}
+	
+	private BufferedImage preprocess(BufferedImage src) {
+		BufferedImage tmp = ImageProcess.grayScale(src);
+		return ImageProcess.sharpen(tmp);
 	}
 	
 	public void onTextTypeset(ArrayList<BufferedImage> pageImageList) {
@@ -87,10 +96,10 @@ final class Episode implements OnTextTypesetListener {
 		
 		pages = new File[pageImageList.size()];
 		for (int i = 0; i < pageImageList.size(); i++) {
-			pages[i] = Utils.getChildFile(pageDir, i + ".png");
+			pages[i] = Utils.getChildFile(pageDir, i + ".bmp");
 			
 			try {
-				ImageIO.write(pageImageList.get(i), "png", pages[i]);
+				ImageIO.write(pageImageList.get(i), "BMP", pages[i]);
 			}
 			catch (IOException e) {
 			}

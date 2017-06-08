@@ -1,6 +1,5 @@
 package com.tcl.pili;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
 
 class MessageLooper extends Thread  {
@@ -17,22 +16,28 @@ class MessageLooper extends Thread  {
 	private LinkedList<Message> mMessageQueue;
 	private Object mLock;
 	
-	private ArrayList<MessageHandler> mHandlerList;
+	private MessageHandler mHandler;
 	
 	private MessageLooper() {
 		mMessageQueue = new LinkedList<Message>();
 		mLock = new Object();
-		
-		mHandlerList = new ArrayList<MessageHandler>();
 	}
 	
 	public void registerHandler(MessageHandler handler) {
-		mHandlerList.add(handler);
+		mHandler = handler;
 	}
 	
 	public void post(Message msg) {
 		synchronized (mLock) {
 			mMessageQueue.add(msg);
+		}
+	}
+	
+	public void quitSafely() {
+		try {
+			join();
+		}
+		catch (InterruptedException e) {
 		}
 	}
 	
@@ -51,22 +56,12 @@ class MessageLooper extends Thread  {
 				continue;
 			}
 			
+			if (mHandler != null) {
+				mHandler.handleMessage(msg);
+			}
+			
 			if (msg.what == Message.MSG_COMPLETE) {
 				isDone = true;
-			}
-			else {
-				boolean isHandled = false;
-				for (int i = 0; i < mHandlerList.size(); i++) {
-					MessageHandler handler = mHandlerList.get(i);
-					if (handler.handleMessage(msg)) {
-						isHandled = true;
-						break;
-					}
-				}
-				
-				if (!isHandled) {
-					System.err.print("unknown message " + msg.what + "\r\n");
-				}
 			}
 		}
 	}

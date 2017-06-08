@@ -8,7 +8,7 @@ import java.net.Proxy;
 import java.net.URL;
 
 final class HTTPClient {
-	private static final boolean sUseProxy = false;
+	private static final boolean sUseProxy = true;
 	
 	private HttpURLConnection mConnection;
 	

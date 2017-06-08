@@ -1,34 +1,25 @@
 package com.tcl.pili;
 
-import java.io.File;
-
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 final class WebsiteParser {
-	private static final String WEBSITE = "https://pilicreateworld.tw-blog.com";
+	private static final String sWebsite = "https://pilicreateworld.tw-blog.com";
 	
-	private File storageDir;
-	private Pili pili;
-	
-	public WebsiteParser(File storageDir) {
-		this.storageDir = storageDir;
-	}
-	
-	public void parse() {
-		loadPage(WEBSITE, new OnWebsitePageLoadedListener(storageDir));
+	public void execute(String path) {
+		loadPage(sWebsite, new OnWebsitePageLoadedListener(new Context(path)));
 	}
 	
 	private class OnWebsitePageLoadedListener implements OnPageLoadListener {
-		private File storageDir;
+		private Context context;
 		
-		public OnWebsitePageLoadedListener(File storageDir) {
-			this.storageDir = storageDir;
+		public OnWebsitePageLoadedListener(Context context) {
+			this.context = context;
 		}
 		
 		public void onPageLoad(Document doc) {
-			parseWebsitePage(doc, storageDir);
+			parseWebsitePage(doc, context);
 		}
 		
 		public void onError() {
@@ -36,20 +27,21 @@ final class WebsiteParser {
 		}
 	}
 	
-	private void parseWebsitePage(Document doc, File storageDir) {
+	private void parseWebsitePage(Document doc, Context context) {
 		Elements frameList = doc.select("frame");
         for (int i = 0; i < frameList.size(); i++) {
 			Element frame = frameList.get(i);
 			
 			String value = frame.attr("name");
 			if (!value.isEmpty() && value.equals("rbottom2")) {
-				String url = WEBSITE + "/" + frame.attr("src");
-				pili = new Pili(storageDir, url);
+				String url = sWebsite + "/" + frame.attr("src");
+				context.createPili(url);
 				break;
 			}
 		}
         
-        if (pili == null) {
+        if (context.getPili() != null) {
+        	Pili pili = context.getPili();
 			loadPage(pili.getUrl(), new OnMainPageLoadedListener(pili));
 		}
 		else {
@@ -80,7 +72,7 @@ final class WebsiteParser {
 			
 			String value = anchor.attr("id");
 			if (!value.isEmpty() && value.startsWith("info")) {
-				String url = WEBSITE + "/" + anchor.attr("href");
+				String url = sWebsite + "/" + anchor.attr("href");
 				String name = value.substring(4) + "." + getDramaName(anchor.text());
 				pili.addDrama(new Drama(pili, url, name));
 			}
@@ -89,7 +81,7 @@ final class WebsiteParser {
 		if (pili.getDramaCount() > 0) {
 			pili.sortDramaBySerialNumber();
 			
-			for (int i = 0; i < pili.getDramaCount(); i++) {
+			for (int i = 0; i < 1/*pili.getDramaCount()*/; i++) {
 				Drama drama = pili.getDrama(i);
 				loadPage(drama.getUrl(), new OnDramaPageLoadedListener(drama));
 			}
@@ -131,7 +123,7 @@ final class WebsiteParser {
 			
 			String value = anchor.attr("target");
 			if (!value.isEmpty() && value.equals("_blank")) {
-				String url = WEBSITE + "/PILI/" + anchor.attr("href");
+				String url = sWebsite + "/PILI/" + anchor.attr("href");
 				String name = getEpisodeName(anchor.text());
 				drama.addEpisode(new Episode(drama, url, name));
 			}
@@ -140,7 +132,7 @@ final class WebsiteParser {
 		if (drama.getEpisodeCount() > 0) {
 			drama.sortEpisodeBySerialNumber();
 			
-			for (int i = 0; i < drama.getEpisodeCount(); i++) {
+			for (int i = 0; i < 1/*drama.getEpisodeCount()*/; i++) {
 				Episode episode = drama.getEpisode(i);
 				loadPage(episode.getUrl(), new OnEpisodePageLoadedListener(episode));
 			}
@@ -195,7 +187,7 @@ final class WebsiteParser {
 	}
 	
 	private void loadPage(String url, OnPageLoadListener listener) {
-		Message msg = new Message(Message.MSG_LOAD_WEBPAGE, new LoadPage(url, WEBSITE, listener));
+		Message msg = new Message(Message.MSG_LOAD_WEBPAGE, new LoadPage(url, sWebsite, listener));
 		MessageLooper.getInstance().post(msg);
 	}
 }

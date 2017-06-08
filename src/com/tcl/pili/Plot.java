@@ -30,6 +30,7 @@ final class Plot implements OnImageDownloadListener {
 	}
 	
 	public void onImageDownload() {
+		System.out.print(url + " is downloaded!\r\n");
 		episode.notifyPlotDone();
 	}
 	

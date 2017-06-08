@@ -6,14 +6,14 @@ import java.util.Collections;
 import java.util.Comparator;
 
 final class Pili {
-	private File dir;
+	private Context ctx;
 	private String url;
 	
 	private ArrayList<Drama> dramaList;
 	private int packCnt;
 	
-	public Pili(File dir, String url) {
-		this.dir = dir;
+	public Pili(Context ctx, String url) {
+		this.ctx = ctx;
 		this.url = url;
 		
 		dramaList = new ArrayList<Drama>(100);
@@ -21,7 +21,7 @@ final class Pili {
 	}
 	
 	public File getDir() {
-		File piliDir = Utils.getChildFile(this.dir, "霹靂系列");
+		File piliDir = Utils.getChildFile(ctx.getDir(), "霹靂系列");
 		if (!piliDir.exists()) {
 			piliDir.mkdir(); 
 		}
