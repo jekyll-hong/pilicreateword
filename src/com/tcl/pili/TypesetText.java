@@ -23,12 +23,12 @@ final class TypesetText implements Runnable {
 		
 		param.set(TypesetParamter.KEY_TOP_MARGIN, 30);
 		param.set(TypesetParamter.KEY_BOTTOM_MARGIN, 30);
-		param.set(TypesetParamter.KEY_LEFT_MARGIN, 50);
-		param.set(TypesetParamter.KEY_BOTTOM_MARGIN, 50);
-		param.set(TypesetParamter.KEY_LINES_PER_PAGE, 15);
-		param.set(TypesetParamter.KEY_LINE_SPACE, 5);
-		param.set(TypesetParamter.KEY_WORDS_PER_LINE, 20);
-		param.set(TypesetParamter.KEY_WORD_SPACE, 2);
+		param.set(TypesetParamter.KEY_LEFT_MARGIN, 30);
+		param.set(TypesetParamter.KEY_RIGHT_MARGIN, 30);
+		param.set(TypesetParamter.KEY_LINES_PER_PAGE, 20);
+		param.set(TypesetParamter.KEY_LINE_SPACE, 6);
+		param.set(TypesetParamter.KEY_WORDS_PER_LINE, 15);
+		param.set(TypesetParamter.KEY_WORD_SPACE, 3);
 		
 		return param;
 	}

@@ -21,20 +21,6 @@ final class TypesetMethod implements TypesetMethodInterface {
 		return paging(avgWordSize[0], avgWordSize[1], wordList);
 	}
 	
-	private int[] getAverageWordSize(ArrayList<BufferedImage> wordList) {
-		int totalWidth = 0;
-		int totalHeight = 0;
-		
-		for (int i = 0; i < wordList.size(); i++) {
-			BufferedImage word = wordList.get(i);
-			
-			totalWidth += word.getWidth();
-			totalHeight += word.getHeight();
-		}
-		
-		return new int[] {totalWidth / wordList.size(), totalHeight / wordList.size()};
-	}
-	
 	private class Line {
 		public int top;
 		public int bottom;
@@ -138,7 +124,7 @@ final class TypesetMethod implements TypesetMethodInterface {
 			}
 			
 			if (wordPixels < 3) {
-				if (top != -1) {
+				if ((top != -1) && (bottom - top + 1 > 10)) {
 					return new Line(top, bottom);
 				}
 			}
@@ -205,6 +191,20 @@ final class TypesetMethod implements TypesetMethodInterface {
 		return null;
 	}
 	
+	private int[] getAverageWordSize(ArrayList<BufferedImage> wordList) {
+		int totalWidth = 0;
+		int totalHeight = 0;
+		
+		for (int i = 0; i < wordList.size(); i++) {
+			BufferedImage word = wordList.get(i);
+			
+			totalWidth += word.getWidth();
+			totalHeight += word.getHeight();
+		}
+		
+		return new int[] {totalWidth / wordList.size(), totalHeight / wordList.size()};
+	}
+	
 	private ArrayList<BufferedImage> paging(int avgWordWidth, int avgWordHeight, ArrayList<BufferedImage> wordList) {
 		ArrayList<BufferedImage> pageImageList = new ArrayList<BufferedImage>();
 		
@@ -237,7 +237,7 @@ final class TypesetMethod implements TypesetMethodInterface {
 					
 					graphics.drawImage(word, null, xOffset, yOffset);
 					
-					xOffset += (word.getWidth() + param.get(TypesetParamter.KEY_WORD_SPACE));
+					xOffset += (avgWordWidth + param.get(TypesetParamter.KEY_WORD_SPACE));
 				}
 				while ((--wordCnt > 0) && !wordList.isEmpty());
 				

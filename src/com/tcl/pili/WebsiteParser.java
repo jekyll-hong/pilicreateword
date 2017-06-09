@@ -81,7 +81,7 @@ final class WebsiteParser {
 		if (pili.getDramaCount() > 0) {
 			pili.sortDramaBySerialNumber();
 			
-			for (int i = 0; i < 1/*pili.getDramaCount()*/; i++) {
+			for (int i = 0; i < pili.getDramaCount(); i++) {
 				Drama drama = pili.getDrama(i);
 				loadPage(drama.getUrl(), new OnDramaPageLoadedListener(drama));
 			}
@@ -132,7 +132,7 @@ final class WebsiteParser {
 		if (drama.getEpisodeCount() > 0) {
 			drama.sortEpisodeBySerialNumber();
 			
-			for (int i = 0; i < 1/*drama.getEpisodeCount()*/; i++) {
+			for (int i = 0; i < drama.getEpisodeCount(); i++) {
 				Episode episode = drama.getEpisode(i);
 				loadPage(episode.getUrl(), new OnEpisodePageLoadedListener(episode));
 			}

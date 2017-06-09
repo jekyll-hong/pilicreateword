@@ -4,11 +4,13 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 final class MessageHandler {
 	private ScheduledThreadPoolExecutor mNetworkThreadPool;
-	private ScheduledThreadPoolExecutor mThreadPool;
+	private ScheduledThreadPoolExecutor mTypesetThreadPool;
+	private ScheduledThreadPoolExecutor mPackThreadPool;
 	
 	public MessageHandler() {
-		mNetworkThreadPool = new ScheduledThreadPoolExecutor(2);
-		mThreadPool = new ScheduledThreadPoolExecutor(2);
+		mNetworkThreadPool = new ScheduledThreadPoolExecutor(4);
+		mTypesetThreadPool = new ScheduledThreadPoolExecutor(2);
+		mPackThreadPool = new ScheduledThreadPoolExecutor(2);
 	}
 	
 	public boolean handleMessage(Message msg) {
@@ -25,17 +27,18 @@ final class MessageHandler {
 			}
 			case Message.MSG_TYPESET_TEXT: {
 				TypesetText job = (TypesetText)msg.obj;
-				mThreadPool.execute(job);
+				mTypesetThreadPool.execute(job);
 				break;
 			}
 			case Message.MSG_PACK_PDF: {
 				PackPDF job = (PackPDF)msg.obj;
-				mThreadPool.execute(job);
+				mPackThreadPool.execute(job);
 				break;
 			}
 			case Message.MSG_COMPLETE: {
 				mNetworkThreadPool.shutdown();
-				mThreadPool.shutdown();
+				mTypesetThreadPool.shutdown();
+				mPackThreadPool.shutdown();
 				break;
 			}
 			default: {
