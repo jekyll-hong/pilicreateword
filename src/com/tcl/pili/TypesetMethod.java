@@ -123,8 +123,8 @@ final class TypesetMethod implements TypesetMethodInterface {
 				}
 			}
 			
-			if (wordPixels < 3) {
-				if ((top != -1) && (bottom - top + 1 > 10)) {
+			if (wordPixels == 0) {
+				if (top != -1) {
 					return new Line(top, bottom);
 				}
 			}
@@ -173,7 +173,7 @@ final class TypesetMethod implements TypesetMethodInterface {
 				}
 			}
 			
-			if (wordPixels < 100) {
+			if (wordPixels < 120) {
 				if ((left != -1) && (wordPixels < minWordPixels)) {
 					minWordPixels = wordPixels;
 					right = i;
