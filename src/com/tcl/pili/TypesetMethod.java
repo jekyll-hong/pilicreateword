@@ -17,8 +17,8 @@ final class TypesetMethod implements TypesetMethodInterface {
 	public ArrayList<BufferedImage> typeset(BufferedImage src) {
 		ArrayList<BufferedImage> wordList = getWordInImage(src);
 		
-		int[] avgWordSize = getAverageWordSize(wordList);
-		return paging(avgWordSize[0], avgWordSize[1], wordList);
+		int[] wordRectSize = getWordRectSize(wordList);
+		return paging(wordRectSize[0], wordRectSize[1], wordList);
 	}
 	
 	private class Line {
@@ -162,6 +162,7 @@ final class TypesetMethod implements TypesetMethodInterface {
 	private Column getOneColumn(BufferedImage image, int pos) {
 		int left = -1;
 		int right = -1;
+		int minWordPixels = 0x7fffffff;
 		
 		for (int i = pos; i < image.getWidth(); i++) {
 			int wordPixels = 0;
@@ -173,44 +174,58 @@ final class TypesetMethod implements TypesetMethodInterface {
 			}
 			
 			if (wordPixels < 100) {
-				if (left != -1) {
-					return new Column(left, right);
+				if ((left != -1) && (wordPixels < minWordPixels)) {
+					minWordPixels = wordPixels;
+					right = i;
 				}
 			}
 			else {
 				if (left == -1) {
 					left = i;
-					right = left;
 				}
 				else {
-					right++;
+					if (right != -1)  {
+						return new Column(left, right - 1);
+					}
 				}
 			}
 		}
 		
-		return null;
+		if ((left != -1) && (right != 1)) {
+			return new Column(left, right - 1);
+		}
+		else {
+			return null;
+		}
 	}
 	
-	private int[] getAverageWordSize(ArrayList<BufferedImage> wordList) {
-		int totalWidth = 0;
-		int totalHeight = 0;
+	private int[] getWordRectSize(ArrayList<BufferedImage> wordList) {
+		int maxWidth = 0;
+		int maxHeight = 0;
 		
 		for (int i = 0; i < wordList.size(); i++) {
 			BufferedImage word = wordList.get(i);
 			
-			totalWidth += word.getWidth();
-			totalHeight += word.getHeight();
+			int width = word.getWidth();
+			if (width > maxWidth) {
+				maxWidth = width;
+			}
+			
+			int height = word.getHeight();
+			if (height > maxHeight) {
+				maxHeight = height;
+			}
 		}
 		
-		return new int[] {totalWidth / wordList.size(), totalHeight / wordList.size()};
+		return new int[] {maxWidth, maxHeight};
 	}
 	
-	private ArrayList<BufferedImage> paging(int avgWordWidth, int avgWordHeight, ArrayList<BufferedImage> wordList) {
+	private ArrayList<BufferedImage> paging(int wordWidth, int wordHeight, ArrayList<BufferedImage> wordList) {
 		ArrayList<BufferedImage> pageImageList = new ArrayList<BufferedImage>();
 		
 		boolean isParagraphEnd = true;		
 		do {
-			BufferedImage pageImage = createPageImage(calculatePageWidth(avgWordWidth), calculatePageHeight(avgWordHeight));
+			BufferedImage pageImage = createPageImage(calculatePageWidth(wordWidth), calculatePageHeight(wordHeight));
 			
 			int lineCnt = param.get(TypesetParamter.KEY_LINES_PER_PAGE);
 			int yOffset = param.get(TypesetParamter.KEY_TOP_MARGIN) + 1;
@@ -222,7 +237,7 @@ final class TypesetMethod implements TypesetMethodInterface {
 				if (isParagraphEnd) {
 					//indent 2 blank word
 					wordCnt -= 2;
-					xOffset += (avgWordWidth + param.get(TypesetParamter.KEY_WORD_SPACE)) * 2;
+					xOffset += (wordWidth + param.get(TypesetParamter.KEY_WORD_SPACE)) * 2;
 					
 					isParagraphEnd = false;
 				}
@@ -237,12 +252,12 @@ final class TypesetMethod implements TypesetMethodInterface {
 					
 					graphics.drawImage(word, null, xOffset, yOffset);
 					
-					xOffset += (avgWordWidth + param.get(TypesetParamter.KEY_WORD_SPACE));
+					xOffset += (wordWidth + param.get(TypesetParamter.KEY_WORD_SPACE));
 				}
 				while ((--wordCnt > 0) && !wordList.isEmpty());
 				
 				if (wordCnt < param.get(TypesetParamter.KEY_WORDS_PER_LINE)) {
-					yOffset += (avgWordHeight + param.get(TypesetParamter.KEY_LINE_SPACE));
+					yOffset += (wordHeight + param.get(TypesetParamter.KEY_LINE_SPACE));
 				}
 			}
 			while ((--lineCnt > 0) && !wordList.isEmpty());
@@ -254,18 +269,18 @@ final class TypesetMethod implements TypesetMethodInterface {
 		return pageImageList;
 	}
 	
-	private int calculatePageWidth(int avgWordWidth) {
+	private int calculatePageWidth(int wordWidth) {
 		int pageWidth = param.get(TypesetParamter.KEY_LEFT_MARGIN)
-				+ avgWordWidth * param.get(TypesetParamter.KEY_WORDS_PER_LINE)
+				+ wordWidth * param.get(TypesetParamter.KEY_WORDS_PER_LINE)
 				+ param.get(TypesetParamter.KEY_WORD_SPACE) * (param.get(TypesetParamter.KEY_WORDS_PER_LINE) - 1)
 				+ param.get(TypesetParamter.KEY_RIGHT_MARGIN);
 		
 		return pageWidth;
 	}
 	
-	private int calculatePageHeight(int avgWordHeight) {
+	private int calculatePageHeight(int wordHeight) {
 		int pageHeight = param.get(TypesetParamter.KEY_TOP_MARGIN)
-				+ avgWordHeight * param.get(TypesetParamter.KEY_LINES_PER_PAGE)
+				+ wordHeight * param.get(TypesetParamter.KEY_LINES_PER_PAGE)
 				+ param.get(TypesetParamter.KEY_LINE_SPACE) * (param.get(TypesetParamter.KEY_LINES_PER_PAGE) - 1)
 				+ param.get(TypesetParamter.KEY_BOTTOM_MARGIN);
 		
