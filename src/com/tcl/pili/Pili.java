@@ -61,6 +61,8 @@ final class Pili {
 	
 	public synchronized void notifyDramaDone() {
 		if (++packCnt == dramaList.size()) {
+			System.out.print("all dramas done!\r\n");
+			
 			Message msg = new Message(Message.MSG_COMPLETE);
 			MessageLooper.getInstance().post(msg);
 		}

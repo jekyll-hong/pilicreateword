@@ -25,6 +25,12 @@ final class Plot implements OnImageDownloadListener {
 			MessageLooper.getInstance().post(msg);
 		}
 		else {
+			try {
+				Thread.sleep(1000);
+			}
+			catch (InterruptedException e) {
+			}
+			
 			episode.notifyPlotDone();
 		}
 	}

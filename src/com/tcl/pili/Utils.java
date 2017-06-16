@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 
 final class Utils {
+	public static final boolean ENABLE_OCR = false;
+	
 	public static File getChildFile(File file, String name) {
 		String dirPath = "";
 		try {

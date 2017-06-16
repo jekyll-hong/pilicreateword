@@ -71,8 +71,7 @@ final class Drama implements OnPDFPackListener {
 	
 	public synchronized void notifyEpisodeDone() {
 		if (++typesettedCnt == episodeList.size()) {
-			System.out.print("all episode in " + name + " are done!\r\n");
-			
+			System.out.print("all episodes in " + name + " done, next step is pack!\r\n");
 			Message msg = new Message(Message.MSG_PACK_PDF, new PackPDF(getChapter(), pdf, this));
 			MessageLooper.getInstance().post(msg);
 		}

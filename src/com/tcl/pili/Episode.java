@@ -16,6 +16,7 @@ final class Episode implements OnTextTypesetListener {
 	private int downloadedCnt;
 	
 	private File[] pages;
+	private OCRInterface ocr;
 	
 	public Episode(Drama drama, String url, String name) {
 		this.drama = drama;
@@ -24,6 +25,8 @@ final class Episode implements OnTextTypesetListener {
 		
 		plotList = new ArrayList<Plot>(10);
 		downloadedCnt = 0;
+		
+		ocr = OCRFactory.create(OCRFactory.OCR_BAIDU);
 	}
 	
 	public File getDir() {
@@ -61,8 +64,7 @@ final class Episode implements OnTextTypesetListener {
 	
 	public synchronized void notifyPlotDone() {
 		if (++downloadedCnt == plotList.size()) {
-			System.out.print("all plot in " + name + " are done!\r\n");
-			
+			System.out.print("all plots in " + name + " done, next step is typeset!\r\n");
 			Message msg = new Message(Message.MSG_TYPESET_TEXT, new TypesetText(merge(), this));
 			MessageLooper.getInstance().post(msg);
 		}
@@ -103,8 +105,14 @@ final class Episode implements OnTextTypesetListener {
 			}
 			catch (IOException e) {
 			}
+			
+			if (Utils.ENABLE_OCR) {
+				File text = Utils.getChildFile(pageDir, i + ".txt");
+				ocr.process(pages[i], text);
+			}
 		}
 		
+		System.out.print("all pages in " + name + " done!\r\n");
 		drama.notifyEpisodeDone();
 	}
 	
