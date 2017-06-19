@@ -86,8 +86,13 @@ final class Episode implements OnTextTypesetListener {
 	}
 	
 	private BufferedImage preprocess(BufferedImage src) {
-		BufferedImage tmp = ImageProcess.grayScale(src);
-		return ImageProcess.sharpen(tmp);
+		BufferedImage tmp = src;
+		
+		tmp = ImageProcess.convert(tmp);
+		tmp = ImageProcess.sharpen(tmp);
+		tmp = ImageProcess.enhanceContrast(tmp);
+		
+		return tmp;
 	}
 	
 	public void onTextTypeset(ArrayList<BufferedImage> pageImageList) {
