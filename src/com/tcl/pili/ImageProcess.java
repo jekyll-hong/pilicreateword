@@ -1,10 +1,12 @@
 package com.tcl.pili;
 
+import ij.ImagePlus;
+import ij.plugin.ContrastEnhancer;
+import ij.process.ByteProcessor;
+import ij.process.ImageConverter;
+
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.awt.image.BufferedImageOp;
-import java.awt.image.ConvolveOp;
-import java.awt.image.Kernel;
 
 final class ImageProcess {
 	public static BufferedImage merge(BufferedImage[] src) {
@@ -25,20 +27,30 @@ final class ImageProcess {
 		return dst;
 	}
 	
-	public static BufferedImage grayScale(BufferedImage src) {
-		BufferedImage dst = new BufferedImage(src.getWidth(), src.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
-		dst.createGraphics().drawImage(src, null, 0, 0);
+	public static BufferedImage convert(BufferedImage src) {
+		ImagePlus img = new ImagePlus();
+		img.setImage(src);
 		
-		return dst;
+		ImageConverter convertor = new ImageConverter(img);
+		convertor.convertToGray8();
+		
+		return img.getBufferedImage();
 	}
 	
 	public static BufferedImage sharpen(BufferedImage src) {
-		float[] elements = {-1.0f, -1.0f, -1.0f,
-                            -1.0f,  9.0f, -1.0f,
-                            -1.0f, -1.0f, -1.0f};
+		ByteProcessor processor = new ByteProcessor(src);
+		processor.sharpen();
 		
-		BufferedImageOp op = new ConvolveOp(new Kernel(3, 3, elements), ConvolveOp.EDGE_NO_OP, null);
+		return src;
+	}
+	
+	public static BufferedImage enhanceContrast(BufferedImage src) {
+		ImagePlus img = new ImagePlus();
+		img.setImage(src);
 		
-		return op.filter(src, null);
+		ContrastEnhancer enhancer = new ContrastEnhancer();
+		enhancer.stretchHistogram(img, 15.0f);
+		
+		return img.getBufferedImage();
 	}
 }
