@@ -145,6 +145,7 @@ final class Episode implements OnTextTypesetListener {
 		catch (IOException e) {
 		}
 		*/
+		
 		tmp = ImageProcess.sharpen(tmp);
 		/*
 		try {
@@ -153,6 +154,7 @@ final class Episode implements OnTextTypesetListener {
 		catch (IOException e) {
 		}
 		*/
+		
 		tmp = ImageProcess.enhanceContrast(tmp);
 		/*
 		try {
@@ -161,7 +163,23 @@ final class Episode implements OnTextTypesetListener {
 		catch (IOException e) {
 		}
 		*/
-		return tmp;
+		
+		return whiteBackground(tmp);
+	}
+	
+	private BufferedImage whiteBackground(BufferedImage src) {
+		for (int i = 0; i < src.getHeight(); i++) {
+			for (int j = 0; j < src.getWidth(); j++) {
+				int gray = src.getRGB(j, i) & 0xff;
+				if (gray >= 220) {
+					gray = 255;
+				}
+				
+				src.setRGB(j, i, new Color(gray, gray, gray).getRGB());
+			}
+		}
+		
+		return src;
 	}
 	
 	public void onTextTypeset(ArrayList<BufferedImage> pageImageList) {
