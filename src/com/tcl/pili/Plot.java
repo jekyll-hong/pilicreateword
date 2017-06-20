@@ -1,6 +1,10 @@
 package com.tcl.pili;
 
+import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
+
+import javax.imageio.ImageIO;
 
 final class Plot implements OnImageDownloadListener {
 	private Episode episode;
@@ -44,7 +48,7 @@ final class Plot implements OnImageDownloadListener {
 		System.err.print("download plot image error!\r\n");
 	}
 	
-	public File getImage() {
-		return image;
+	public BufferedImage getImage() throws IOException {
+		return ImageIO.read(image);
 	}
 }

@@ -1,5 +1,6 @@
 package com.tcl.pili;
 
+import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -65,33 +66,101 @@ final class Episode implements OnTextTypesetListener {
 	public synchronized void notifyPlotDone() {
 		if (++downloadedCnt == plotList.size()) {
 			System.out.print("all plots in " + name + " done, next step is typeset!\r\n");
-			Message msg = new Message(Message.MSG_TYPESET_TEXT, new TypesetText(merge(), this));
+			Message msg = new Message(Message.MSG_TYPESET_TEXT, new TypesetText(getTypesetImage(), this));
 			MessageLooper.getInstance().post(msg);
 		}
 	}
 	
-	private BufferedImage merge(){
+	private BufferedImage getTypesetImage() {
+		BufferedImage typesetImage = preprocess(getPlotImage());
+		
+		return typesetImage.getSubimage(0, 30, typesetImage.getWidth(), typesetImage.getHeight() - 31);
+	}
+	
+	private BufferedImage getPlotImage(){
 		BufferedImage[] plotImages = new BufferedImage[plotList.size()];
+		
 		for (int i = 0; i < plotList.size(); i++) {
 			try {
-				BufferedImage src = ImageIO.read(plotList.get(i).getImage());
-				plotImages[i] = preprocess(src);
+				plotImages[i] = plotList.get(i).getImage();
 			}
 			catch (IOException e) {
 			}
 		}
 		
-		BufferedImage plotImage = ImageProcess.merge(plotImages);
-		return plotImage.getSubimage(0, 30, plotImage.getWidth(), plotImage.getHeight() - 31);
+		return mergeIntoGray(plotImages);
+	}
+	
+	private BufferedImage mergeIntoGray(BufferedImage[] src) {
+		BufferedImage dst = createMergedGrayImage(src);
+		
+		int yOffset = 0;
+		for (int n = 0; n < src.length; n++) {
+			BufferedImage part =  src[n];
+			
+			for (int i = 0; i < part.getHeight(); i++) {
+				for (int j = 0; j < part.getWidth(); j++) {
+					int gray = rgb2gray(part.getRGB(j, i));
+					dst.setRGB(j, yOffset + i, new Color(gray, gray, gray).getRGB());
+				}
+			}
+			
+			yOffset += part.getHeight();
+		}
+		
+		return dst;
+	}
+	
+	private BufferedImage createMergedGrayImage(BufferedImage[] src) {
+		int height = 0;
+		for (int i = 0; i < src.length; i++) {
+			height += src[i].getHeight();
+		}
+		
+		return new BufferedImage(src[0].getWidth(), height, BufferedImage.TYPE_BYTE_GRAY);
+	}
+	
+	private int rgb2gray(int color) {
+		int red = (color >> 16) & 0xff;
+		int green = (color >> 8) & 0xff;
+		int blue = color & 0xff;
+		
+		int gray = (int)(0.2989 * (double)red + 0.5870 * (double)green + 0.1140 * (double)blue);
+		if (gray < 0) {
+			gray = 0;
+		}
+		else if (gray > 255) {
+			gray = 255;
+		}
+		
+		return gray;
 	}
 	
 	private BufferedImage preprocess(BufferedImage src) {
 		BufferedImage tmp = src;
-		
-		tmp = ImageProcess.convert(tmp);
+		/*
+		try {
+			ImageIO.write(tmp, "png", Utils.getChildFile(getDir(), "ori.png"));
+		}
+		catch (IOException e) {
+		}
+		*/
 		tmp = ImageProcess.sharpen(tmp);
+		/*
+		try {
+			ImageIO.write(tmp, "png", Utils.getChildFile(getDir(), "sharpen.png"));
+		}
+		catch (IOException e) {
+		}
+		*/
 		tmp = ImageProcess.enhanceContrast(tmp);
-		
+		/*
+		try {
+			ImageIO.write(tmp, "png", Utils.getChildFile(getDir(), "enhance.png"));
+		}
+		catch (IOException e) {
+		}
+		*/
 		return tmp;
 	}
 	
