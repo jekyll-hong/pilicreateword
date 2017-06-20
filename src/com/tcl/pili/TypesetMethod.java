@@ -291,7 +291,7 @@ final class TypesetMethod implements TypesetMethodInterface {
 		BufferedImage pageImage = new BufferedImage(pageWidth, pageHeight, BufferedImage.TYPE_BYTE_GRAY);
 		
 		Graphics2D graphics = pageImage.createGraphics();
-		graphics.setPaint(new Color(235, 235, 235));
+		graphics.setPaint(new Color(230, 230, 230));
 		graphics.fillRect(0, 0, pageWidth, pageHeight);
 		
 		return pageImage;
