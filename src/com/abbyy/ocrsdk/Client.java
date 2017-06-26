@@ -128,7 +128,7 @@ public class Client {
 		return getTaskListResponse(connection);
 	}
 
-	public void downloadResult(Task task, String outputFile) throws Exception {
+	public void downloadResult(Task task, OutputStream out) throws Exception {
 		if (task.Status != Task.TaskStatus.Completed) {
 			throw new IllegalArgumentException("Invalid task status");
 		}
@@ -145,8 +145,6 @@ public class Client {
 
 		BufferedInputStream reader = new BufferedInputStream(
 				connection.getInputStream());
-
-		FileOutputStream out = new FileOutputStream(outputFile);
 
 		try {
 			byte[] data = new byte[1024];
