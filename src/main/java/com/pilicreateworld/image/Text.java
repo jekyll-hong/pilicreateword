@@ -1,19 +1,22 @@
 package com.pilicreateworld.image;
 
-import com.pilicreateworld.Settings;
-
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.LinkedList;
 import java.util.List;
 
 public class Text {
-    private static final String sDumpDir = "/home/hongyu/share/pilicreateworld/debug/words";
+    private BufferedImage mImage = null;
 
-    private BufferedImage mImage;
+    private int mIndex = 0;
+    private List<Row> mRowList = new LinkedList<Row>();
+    private List<Column> mColumnList = new LinkedList<Column>();
+
+    public Text() {
+        //nothing
+    }
 
     public Text(InputStream in) throws IOException {
         mImage = ImageIO.read(in);
@@ -28,40 +31,38 @@ public class Text {
         mImage = ImageProcess.enhanceContrast(mImage, 2.0f);
     }
 
+    public void append(Text text) {
+        if (mImage == null) {
+            mImage = text.mImage;
+        }
+        else {
+            mImage = ImageProcess.stitch(mImage, text.mImage);
+        }
+    }
+
     public void deleteTitle() {
         mImage = mImage.getSubimage(0, 30, mImage.getWidth(), mImage.getHeight() - 30);
     }
 
-    public void append(Text text) {
-        mImage = ImageProcess.stitch(mImage, text.mImage);
+    public void detectWords() {
+        findRows();
+        findColumns();
     }
 
-    public List<Word> findWords() {
-        List<Word> wordList = new LinkedList<Word>();
-
-        List<Row> rowList = findRows();
-        List<Column> columnList = findColumns();
-        for (Row row : rowList) {
-            for (Column column : columnList) {
-                Word word = new Word(mImage.getSubimage(column.x, row.y, column.width, row.height));
-
-                if (Settings.getInstance().isDebuggable()) {
-                    /*
-                    try {
-                        String fileName = String.format("%05d.png", wordList.size());
-                        ImageIO.write(word.getImage(), "png", new File(sDumpDir + "/" + fileName));
-                    }
-                    catch (IOException e) {
-                        //ignore
-                    }
-                    */
-                }
-
-                wordList.add(word);
-            }
+    public Word read() {
+        if (mIndex == mRowList.size() * mColumnList.size()) {
+            return null;
         }
 
-        return wordList;
+        Row row = mRowList.get(mIndex / mColumnList.size());
+        Column column = mColumnList.get(mIndex % mColumnList.size());
+        mIndex++;
+
+        return new Word(mImage.getSubimage(column.x, row.y, column.width, row.height));
+    }
+
+    public boolean isEof() {
+        return mIndex == mRowList.size() * mColumnList.size();
     }
 
     private class Row {
@@ -74,30 +75,72 @@ public class Text {
         int width;
     }
 
-    private List<Row> findRows() {
-        List<Row> rowList = new LinkedList<Row>();
+    private void findRows() {
         Row row = null;
+        int prevCount = 0;
+        int boundary = 0;
 
         int yOffset = 0;
         do {
             int count = ImageProcess.getBlackPixelsInRow(mImage, yOffset);
             if (count > 0) {
-                //word region
-
+                /**
+                 * word
+                 */
                 if (row == null) {
-                    //upper boundary
+                    /**
+                     * upper boundary
+                     */
                     row = new Row();
                     row.y = yOffset;
+
+                    boundary = row.y;
                 }
+                else {
+                    /**
+                     * 如果相邻两行的边界不明显，则根据变化趋势来判定是否达到边界
+                     */
+                    if ((calculateMagnitude(prevCount) - calculateMagnitude(count) > 1)
+                            && (boundary == row.y)) {
+                        /**
+                         * 大幅下降，临近边界
+                         */
+                        boundary = yOffset;
+                    }
+                    else if ((boundary > row.y) && (prevCount >= count)) {
+                        /**
+                         * 临近边界时，要最小值
+                         */
+                        boundary = yOffset;
+                    }
+                    else if ((calculateMagnitude(count) - calculateMagnitude(prevCount) > 1)
+                            && (boundary > row.y)) {
+                        /**
+                         * 大幅上升，远离边界
+                         */
+                        row.height = boundary - row.y + 1;
+                        mRowList.add(row);
+
+                        row = new Row();
+                        row.y = boundary + 1;
+
+                        boundary = row.y;
+                    }
+                }
+
+                prevCount = count;
             }
             else {
-                //background region
-
+                /**
+                 * background
+                 */
                 if (row != null) {
-                    //lower boundary
+                    /**
+                     * lower boundary
+                     */
                     row.height = yOffset - row.y;
 
-                    rowList.add(row);
+                    mRowList.add(row);
                     row = null;
                 }
             }
@@ -105,14 +148,10 @@ public class Text {
             yOffset++;
         }
         while (yOffset < mImage.getHeight());
-
-        return rowList;
     }
 
-    private List<Column> findColumns() {
-        List<Column> columnList = new LinkedList<Column>();
+    private void findColumns() {
         Column column = null;
-
         int prevCount = 0;
         int boundary = 0;
 
@@ -120,10 +159,13 @@ public class Text {
         do {
             int count = ImageProcess.getBlackPixelsInColumn(mImage, xOffset);
             if (count > 0) {
-                //word region
-
+                /**
+                 * word
+                 */
                 if (column == null) {
-                    //left boundary
+                    /**
+                     * left boundary
+                     */
                     column = new Column();
                     column.x = xOffset;
 
@@ -131,7 +173,7 @@ public class Text {
                 }
                 else {
                     /**
-                     * 字间距不明显，检测相邻两列的边界
+                     * 如果相邻两列的边界不明显，则根据变化趋势来判定是否达到边界
                      */
                     if ((calculateMagnitude(prevCount) - calculateMagnitude(count) > 0)
                             && (boundary == column.x)) {
@@ -152,7 +194,7 @@ public class Text {
                          * 大幅上升，远离边界
                          */
                         column.width = boundary - column.x + 1;
-                        columnList.add(column);
+                        mColumnList.add(column);
 
                         column = new Column();
                         column.x = boundary + 1;
@@ -164,13 +206,16 @@ public class Text {
                 prevCount = count;
             }
             else {
-                //background region
-
+                /**
+                 * background
+                 */
                 if (column != null) {
-                    //right boundary
+                    /**
+                     * right boundary
+                     */
                     column.width = xOffset - column.x;
 
-                    columnList.add(column);
+                    mColumnList.add(column);
                     column = null;
                 }
             }
@@ -178,8 +223,6 @@ public class Text {
             xOffset++;
         }
         while (xOffset < mImage.getWidth());
-
-        return columnList;
     }
 
     private static int calculateMagnitude(int number) {

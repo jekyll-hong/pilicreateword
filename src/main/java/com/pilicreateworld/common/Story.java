@@ -22,28 +22,33 @@ public class Story {
 
             HttpURLConnection connection = (HttpURLConnection)httpUrl.openConnection(
                     Settings.getInstance().getProxy());
+            connection.setConnectTimeout(5 * 1000);
+            connection.setConnectTimeout(30 * 1000);
             connection.connect();
 
-            int statusCode = connection.getResponseCode();
-            if (statusCode == HttpURLConnection.HTTP_MOVED_TEMP
-                    || statusCode == HttpURLConnection.HTTP_MOVED_PERM
-                    || statusCode == HttpURLConnection.HTTP_SEE_OTHER) {
-                /**
-                 * 重定向
-                 */
-                mUrl = connection.getHeaderField("Location");
-            }
-            else if (statusCode == HttpURLConnection.HTTP_OK) {
-                /**
-                 * 成功
-                 */
-                imageInputStream = connection.getInputStream();
-            }
-            else {
-                /**
-                 * 失败
-                 */
-                throw new IOException("http access fail");
+            switch (connection.getResponseCode()) {
+                case HttpURLConnection.HTTP_MOVED_TEMP:
+                case HttpURLConnection.HTTP_MOVED_PERM:
+                case HttpURLConnection.HTTP_SEE_OTHER: {
+                    /**
+                     * 重定向
+                     */
+                    mUrl = connection.getHeaderField("Location");
+                    break;
+                }
+                case HttpURLConnection.HTTP_OK: {
+                    /**
+                     * 成功
+                     */
+                    imageInputStream = connection.getInputStream();
+                    break;
+                }
+                default: {
+                    /**
+                     * 失败
+                     */
+                    throw new IOException("resource access fail");
+                }
             }
         }
         while (imageInputStream == null);

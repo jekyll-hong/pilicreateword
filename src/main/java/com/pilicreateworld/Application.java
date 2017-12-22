@@ -1,12 +1,6 @@
 package com.pilicreateworld;
 
-import com.pilicreateworld.common.Drama;
-import com.pilicreateworld.common.Episode;
-import com.pilicreateworld.common.Story;
-import com.pilicreateworld.ebook.PdfCreator;
-import com.pilicreateworld.typeset.Typesetter;
-import com.pilicreateworld.website.DramaPage;
-import com.pilicreateworld.website.EpisodePage;
+import com.pilicreateworld.common.Series;
 import com.pilicreateworld.website.HomePage;
 import com.pilicreateworld.website.MainPage;
 
@@ -17,59 +11,57 @@ public class Application {
 	private static final String sHomePageUrl = "https://pilicreateworld.tw-blog.com";
 	
 	public static void main(String[] args) {
-		Argument argument = Argument.parse(args);
+		/**
+		 * 传入参数
+		 */
+		for (String arg : args) {
+			if (arg.startsWith("--output=")) {
+				String path = arg.substring(9);
 
-		if (argument.isInvalid()) {
-			System.err.printf("invalid arguments!\n");
-			return;
+				Settings.getInstance().setOutputDirectory(path);
+			}
+			else if (arg.startsWith("--device=")) {
+				String device = arg.substring(9);
+
+				Settings.getInstance().setTargetDevice(device);
+			}
+			else if (arg.startsWith("--proxy=")) {
+				String proxy = arg.substring(8);
+
+				Settings.getInstance().setProxy(proxy);
+			}
+			else if (arg.startsWith("--enable_debug")) {
+				Settings.getInstance().enableDebug();
+			}
+			else {
+				//TODO: add more here
+			}
 		}
 		
 		Application app = new Application();
-		app.execute(argument);
+		app.execute();
 	}
 
-	private void execute(Argument argument) {
-		Typesetter mTypesetter = new Typesetter(argument.getTypesetParameter());
-		PdfCreator mPdfCreator = new PdfCreator(argument.getOutputDir());
-
+	private void execute() {
 		try {
-			HomePage homePage = new HomePage(sHomePageUrl);
-			String mainPageUrl = homePage.getMainPageUrl();
+			List<Series> seriesList = fetchSeriesInformation();
 
-			MainPage mainPage = new MainPage(mainPageUrl);
-            List<Drama> dramaList = mainPage.getDramaList();
-
-			for (int i = 0; i < dramaList.size(); i++) {
-                Drama drama = dramaList.get(i);
-
-                String fileName = String.format("%2d.%s", i + 1, drama.getName());
-                mPdfCreator.open(fileName);
-
-                DramaPage dramaPage = new DramaPage(drama.getUrl());
-                List<Episode> episodeList = dramaPage.getEpisodeList();
-
-				for (int j = 0; j < episodeList.size(); j++) {
-                    Episode episode = episodeList.get(j);
-
-					EpisodePage episodePage = new EpisodePage(episode.getUrl());
-					List<Story> storyList = episodePage.getStoryList();
-
-					for (int k = 0; k < storyList.size(); k++) {
-                        Story story = storyList.get(k);
-
-						episode.addStory(story);
-					}
-
-                    String chapterTitle = episode.getName();
-					mPdfCreator.writeChapter(chapterTitle,
-							mTypesetter.typeset(episode.getFullStoryText().findWords()));
-				}
-
-				mPdfCreator.close();
+			for (Series series : seriesList) {
+				series.exportPdf();
+				System.out.print("导出《" + series.getName() + "》完毕！\n");
 			}
 		}
 		catch (IOException e) {
-			System.err.printf("network error!\n");
+			System.err.print(e.getMessage());
+			e.printStackTrace();
 		}
+	}
+
+	private static List<Series> fetchSeriesInformation() throws IOException {
+		HomePage homePage = new HomePage(sHomePageUrl);
+		String mainPageUrl = homePage.getMainPageUrl();
+
+		MainPage mainPage = new MainPage(mainPageUrl);
+		return mainPage.getSeries();
 	}
 }

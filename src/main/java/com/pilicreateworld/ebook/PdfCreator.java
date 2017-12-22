@@ -2,68 +2,114 @@ package com.pilicreateworld.ebook;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.List;
 
-import com.itextpdf.io.image.ImageDataFactory;
 import com.itextpdf.kernel.geom.PageSize;
 import com.itextpdf.kernel.pdf.*;
 import com.itextpdf.kernel.pdf.navigation.PdfDestination;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.element.Image;
+import com.pilicreateworld.Settings;
 import com.pilicreateworld.image.Page;
+import com.pilicreateworld.image.Text;
+import com.pilicreateworld.image.Word;
 
 public class PdfCreator {
-	private String mOutputDir;
-
 	private PdfDocument mPdfDocument;
-	private Document mRoot;
+    private Document mDocument;
 
-	public PdfCreator(String outputDir) {
-		mOutputDir = outputDir;
-	}
+    private Page.Builder mPageBuilder;
 
-    public void open(String fileName) throws FileNotFoundException {
-        PdfWriter writer = new PdfWriter(mOutputDir + "/" + fileName + ".pdf");
-        //writer settings
-
-        mPdfDocument = new PdfDocument(writer);
+    public PdfCreator(String path) throws FileNotFoundException {
+        mPdfDocument = new PdfDocument(new PdfWriter(path));
         mPdfDocument.getCatalog().setPageMode(PdfName.UseOutlines);
 
-        mRoot = new Document(mPdfDocument);
-        mRoot.setMargins(0.0f, 0.0f, 0.0f, 0.0f);
-    }
+        if (Settings.getInstance().getTargetDevice().equals("nexus5")) {
+            /**
+             * 参数是调出的，没有任何依据
+             */
+            mPdfDocument.setDefaultPageSize(new PageSize(360.0f, 480.0f));
 
-    public void writeChapter(String title, List<Page> pageList) throws IOException {
-		String destination = String.format("title%d", mPdfDocument.getNumberOfPages());
+            mPageBuilder = new Page.Builder();
+            mPageBuilder.setPageSize(360, 480);
+            mPageBuilder.setMargins(16, 32, 16, 32);
+            mPageBuilder.setIndent(2);
+            mPageBuilder.setLineSpacing(5);
+            mPageBuilder.setWordSpacing(3);
+            mPageBuilder.setWordSize(16, 16);
+        }
+        else {
+            throw new IllegalArgumentException("unsupported device");
+        }
+
+        mDocument = new Document(mPdfDocument);
+        mDocument.setMargins(0.0f, 0.0f, 0.0f, 0.0f);
+	}
+
+    public void writeChapter(String title, Text text) throws IOException {
+        /**
+         * 大纲中添加章节信息
+         */
+        String destination = String.format("title%d", mPdfDocument.getNumberOfPages());
+        writeOutline(title, destination);
 
         /**
-         * 在大纲中添加章节目录
+         * 章节的第一页，起始缩进两字符
          */
-		PdfOutline chapterTitle = mPdfDocument.getOutlines(false).addOutline(title);
-		chapterTitle.addDestination(PdfDestination.makeDestination(new PdfString(destination)));
+        Page page = mPageBuilder.build();
+        page.writeSpace();
+        page.writeSpace();
 
-		boolean isFirstPage = true;
-		for (Page page : pageList) {
-			Image image = new Image(ImageDataFactory.create(page.getImage(), null));
+        while (!text.isEof()) {
+            Word word = text.read();
 
-			if (isFirstPage) {
-                /**
-                 * 关联目录中的跳转页码
-                 */
-				image.setDestination(destination);
-                isFirstPage = false;
-			}
+            if (!page.write(word)) {
+                boolean isParagraphEnd = page.isParagraphEnd();
+                writePage(page, destination);
+                destination = "";
 
-            mPdfDocument.addNewPage(new PageSize(image.getImageWidth(), image.getImageHeight()));
-            mRoot.add(image);
-		}
+                page = mPageBuilder.build();
+                if (isParagraphEnd) {
+                    /**
+                     * 上一页的末尾恰好是段落结束，这一页起始缩进两字符
+                     */
+                    page.writeSpace();
+                    page.writeSpace();
+                }
+                page.write(word);
+            }
+        }
 
-        mRoot.flush();
+        /**
+         * 最后一页，结束
+         */
+        writePage(page, destination);
+    }
+
+    private void writeOutline(String title, String destination) {
+        PdfOutline root = mPdfDocument.getOutlines(false);
+
+        PdfOutline leaf = root.addOutline(title);
+        leaf.addDestination(
+                PdfDestination.makeDestination(new PdfString(destination)));
+    }
+
+    private void writePage(Page page, String destination) throws IOException {
+        mPdfDocument.addNewPage();
+
+        Image imgElement = new Image(page.getImageData());
+        if (!destination.isEmpty()) {
+            /**
+             * 关联大纲中的目录
+             */
+            imgElement.setDestination(destination);
+        }
+
+        mDocument.add(imgElement);
     }
 
     public void close() {
-	    if (mRoot != null) {
-            mRoot.close();
+	    if (mDocument != null) {
+            mDocument.close();
         }
 
 		if (mPdfDocument != null) {

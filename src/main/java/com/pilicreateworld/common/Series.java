@@ -1,24 +1,28 @@
 package com.pilicreateworld.common;
 
+import com.pilicreateworld.Settings;
+import com.pilicreateworld.ebook.PdfCreator;
+import com.pilicreateworld.website.SeriesPage;
+
+import java.io.IOException;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class Drama {
+public class Series {
     private static Pattern sNamePattern = Pattern.compile("[\\u4e00-\\u9fa5]+");
     private static Pattern sSerialNamePattern = Pattern.compile("\\d{2}");
 
-    private String mUrl;
     private String mName;
     private int mSerialNumber;
 
-    public Drama(String url, String information) {
-        mUrl = url;
+    private String mUrl;
+
+    public Series(String url, String information) {
         mName = parseName(information);
         mSerialNumber = parseSerialNumber(information);
-    }
 
-    public String getUrl() {
-        return mUrl;
+        mUrl = url;
     }
 
     public String getName() {
@@ -29,13 +33,29 @@ public class Drama {
         return mSerialNumber;
     }
 
+    public void exportPdf() throws IOException {
+        PdfCreator pdfCreator = new PdfCreator(
+                Settings.getInstance().getOutputDirectory() + "/" + getName() + ".pdf");
+
+        for (Episode episode : fetchEpisodesInformation()) {
+            pdfCreator.writeChapter(episode.getName(), episode.getFullText());
+        }
+
+        pdfCreator.close();
+    }
+
+    private List<Episode> fetchEpisodesInformation() throws IOException {
+        SeriesPage seriesPage = new SeriesPage(mUrl);
+        return seriesPage.getEpisodes();
+    }
+
     private static String parseName(String information) {
         Matcher matcher = sNamePattern.matcher(information);
         if (matcher.find()) {
             return matcher.group();
         }
 
-        return "";
+        throw new IllegalStateException("not can get the name of this series");
     }
 
     private static int parseSerialNumber(String information) {

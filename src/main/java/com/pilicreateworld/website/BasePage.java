@@ -7,15 +7,16 @@ import org.jsoup.nodes.Document;
 
 import java.io.IOException;
 
-abstract class Page {
-    protected Document mDocument;
+abstract class BasePage {
+    private String mUrl;
 
-    public Page(String url) throws IOException {
-        mDocument = load(url);
+    protected BasePage(String url) {
+        mUrl = url;
     }
 
-    private static Document load(String url) throws IOException {
-        Connection connection = HttpConnection.connect(url);
+    protected Document load() throws IOException {
+        Connection connection = HttpConnection.connect(mUrl);
+        connection.timeout(5 * 1000);
         connection.proxy(Settings.getInstance().getProxy());
 
         return connection.get();

@@ -1,44 +1,42 @@
 package com.pilicreateworld.website;
 
-import com.pilicreateworld.common.Drama;
+import com.pilicreateworld.common.Series;
 import org.jsoup.nodes.Element;
 
 import java.io.IOException;
 import java.util.*;
 
-public class MainPage extends Page {
-    public MainPage(String url) throws IOException {
+public class MainPage extends BasePage {
+    public MainPage(String url) {
         super(url);
     }
 
-    public List<Drama> getDramaList() {
-        List<Drama> dramaList = new ArrayList<Drama>(100);
+    public List<Series> getSeries() throws IOException {
+        List<Series> seriesList = new ArrayList<Series>(100);
 
         /**
-         * 霹雳布袋戏全系列
+         * 全系列
          */
-        Iterator<Element> it = mDocument.body().getElementsByTag("a").iterator();
-        while (it.hasNext()) {
-            Element anchor = it.next();
-
+        for (Element anchor : load().body().getElementsByTag("a")) {
             String value = anchor.attr("id");
+
             if (value != null && value.startsWith("info")) {
                 String url = anchor.absUrl("href");
                 String information = anchor.text();
 
-                Drama drama = new Drama(url, information);
-                dramaList.add(drama);
+                Series series = new Series(url, information);
+                seriesList.add(series);
             }
         }
 
-        if (dramaList.size() > 1) {
-            Collections.sort(dramaList, new Comparator<Drama>() {
-                public int compare(Drama drama1, Drama drama2) {
-                    return drama1.getSerialNumber() - drama2.getSerialNumber();
+        if (seriesList.size() > 1) {
+            Collections.sort(seriesList, new Comparator<Series>() {
+                public int compare(Series series1, Series series2) {
+                    return series1.getSerialNumber() - series2.getSerialNumber();
                 }
             });
         }
 
-        return dramaList;
+        return seriesList;
     }
 }

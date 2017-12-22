@@ -2,6 +2,7 @@ package com.pilicreateworld.image;
 
 import ij.plugin.ContrastEnhancer;
 import ij.process.ByteProcessor;
+import ij.process.ColorProcessor;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -13,7 +14,10 @@ class ImageProcess {
         BufferedImage dst = new BufferedImage(src.getWidth(),
                 src.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
 
-        Graphics graphics = dst.getGraphics();
+        Graphics2D graphics = dst.createGraphics();
+        //graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         graphics.drawImage(src, 0, 0, null);
         graphics.dispose();
 
@@ -24,7 +28,10 @@ class ImageProcess {
         BufferedImage dst = new BufferedImage(src1.getWidth(),
                 src1.getHeight() + src2.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
 
-        Graphics graphics = dst.getGraphics();
+        Graphics2D graphics = dst.createGraphics();
+        //graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         graphics.drawImage(src1, 0, 0, null);
         graphics.drawImage(src2, 0, src1.getHeight(), null);
         graphics.dispose();
@@ -35,7 +42,10 @@ class ImageProcess {
     public static BufferedImage scale(BufferedImage src, int dstWidth, int dstHeight) {
         BufferedImage dst = new BufferedImage(dstWidth, dstHeight, BufferedImage.TYPE_BYTE_GRAY);
 
-        Graphics graphics = dst.getGraphics();
+        Graphics2D graphics = dst.createGraphics();
+        graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         graphics.drawImage(src, 0, 0, dstWidth, dstHeight, null);
         graphics.dispose();
 
@@ -43,7 +53,7 @@ class ImageProcess {
     }
 
     public static BufferedImage sharpen(BufferedImage src) {
-        ByteProcessor processor = new ByteProcessor(src);
+        ColorProcessor processor = new ColorProcessor(src);
 
         processor.sharpen();
 
@@ -107,5 +117,13 @@ class ImageProcess {
          * 灰度图像的R、G、B三个通道的颜色值都是同一灰度值
          */
         return color & 0xff;
+    }
+
+    public static BufferedImage thinning(BufferedImage src) {
+        ByteProcessor processor = new ByteProcessor(src);
+
+        processor.skeletonize();
+
+        return processor.getBufferedImage();
     }
 }

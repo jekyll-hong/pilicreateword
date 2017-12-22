@@ -1,8 +1,10 @@
 package com.pilicreateworld.common;
 
 import com.pilicreateworld.image.Text;
+import com.pilicreateworld.website.EpisodePage;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -10,20 +12,16 @@ public class Episode {
     private static Pattern sNamePattern = Pattern.compile("[\\u4e00-\\u9fa5]+");
     private static Pattern sSerialNamePattern = Pattern.compile("\\d{2}");
 
-    private String mUrl;
     private String mName;
     private int mSerialNumber;
 
-    private Text mFullStoryText = null;
+    private String mUrl;
 
     public Episode(String url, String information) {
-        mUrl = url;
         mName = parseName(information);
         mSerialNumber = parseSerialNumber(information);
-    }
 
-    public String getUrl() {
-        return mUrl;
+        mUrl = url;
     }
 
     public String getName() {
@@ -40,7 +38,7 @@ public class Episode {
             return matcher.group();
         }
 
-        return "";
+        throw new IllegalStateException("not can get the name of this episode");
     }
 
     private static int parseSerialNumber(String information) {
@@ -56,24 +54,32 @@ public class Episode {
         return -1;
     }
 
-    public void addStory(Story story) throws IOException {
-        Text storyText = story.getText();
+    public Text getFullText() throws IOException {
+        Text fullText = new Text();
 
-        if (mFullStoryText == null) {
-            mFullStoryText = storyText;
+        /**
+         * 合并剧情口白
+         */
+        for (Story story : fetchStoriesInformation()) {
+            Text text = story.getText();
+            fullText.append(text);
+        }
 
-            /**
-             * 删除第一段最上面的标题
-             * “创世小组：xx 网站：霹雳创世录：pilicreateworld.tw-blog.com 霹雳创世录”
-             */
-            mFullStoryText.deleteTitle();
-        }
-        else {
-            mFullStoryText.append(storyText);
-        }
+        /**
+         * 删除最上面的标题
+         * “创世小组：xx 网站：霹雳创世录：pilicreateworld.tw-blog.com 霹雳创世录”
+         */
+        fullText.deleteTitle();
+        /**
+         * 检测汉字
+         */
+        fullText.detectWords();
+
+        return fullText;
     }
 
-    public Text getFullStoryText() {
-        return mFullStoryText;
+    private List<Story> fetchStoriesInformation() throws IOException {
+        EpisodePage episodePage = new EpisodePage(mUrl);
+        return episodePage.getStories();
     }
 }

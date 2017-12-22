@@ -9,18 +9,13 @@ public class Word {
         mImage = image;
     }
 
-    public boolean isBlank() {
+    public boolean isSpace() {
         int blackPixelCnt = ImageProcess.getBlackPixels(mImage);
 
         return blackPixelCnt == 0;
     }
 
-    public void changeSize(int width, int height) {
-        mImage = ImageProcess.scale(mImage, width, height);
-        mImage = ImageProcess.sharpen(mImage);
-    }
-
-    public BufferedImage getImage() {
-        return mImage;
+    public BufferedImage scale(int width, int height) {
+        return ImageProcess.scale(mImage, width, height);
     }
 }

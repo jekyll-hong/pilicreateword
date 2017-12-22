@@ -6,22 +6,20 @@ import org.jsoup.nodes.Element;
 import java.io.IOException;
 import java.util.*;
 
-public class DramaPage extends Page {
-    public DramaPage(String url) throws IOException {
+public class SeriesPage extends BasePage {
+    public SeriesPage(String url) {
         super(url);
     }
 
-    public List<Episode> getEpisodeList() {
+    public List<Episode> getEpisodes() throws IOException {
         List<Episode> episodeList = new ArrayList<Episode>(60);
 
         /**
-         * 剧集介绍
+         * 全剧集
          */
-        Iterator<Element> it = mDocument.body().getElementsByTag("a").iterator();
-        while (it.hasNext()) {
-            Element anchor = it.next();
-
+        for (Element anchor : load().body().getElementsByTag("a")) {
             String value = anchor.attr("target");
+
             if (value != null && value.equals("_blank")) {
                 String url = anchor.absUrl("href");
                 String information = anchor.text();
