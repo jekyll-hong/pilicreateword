@@ -8,6 +8,8 @@ import java.io.InputStream;
 import java.net.*;
 
 public class Story {
+    private static final int TIMEOUT_MSEC = 10000;
+
     private String mUrl;
 
     public Story(String url) {
@@ -22,8 +24,7 @@ public class Story {
 
             HttpURLConnection connection = (HttpURLConnection)httpUrl.openConnection(
                     Settings.getInstance().getProxy());
-            connection.setConnectTimeout(5 * 1000);
-            connection.setConnectTimeout(30 * 1000);
+            connection.setConnectTimeout(TIMEOUT_MSEC);
             connection.connect();
 
             switch (connection.getResponseCode()) {
