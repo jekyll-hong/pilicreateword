@@ -22,9 +22,9 @@ public class Settings {
     private boolean mEnableProxy = false;
     private String mProxyIp;
     private int mProxyPort;
-
+    /*
     private String mTargetDevice = "unknown";
-
+    */
     private boolean mEnableDebug = false;
 
     private Settings() {
@@ -97,7 +97,7 @@ public class Settings {
 
         return proxy;
     }
-
+    /*
     public void setTargetDevice(String device) {
         mTargetDevice = device;
     }
@@ -105,7 +105,7 @@ public class Settings {
     public String getTargetDevice() {
         return mTargetDevice;
     }
-
+    */
     public void enableDebug() {
         mEnableDebug = true;
     }
