@@ -8,6 +8,8 @@ import org.jsoup.nodes.Document;
 import java.io.IOException;
 
 abstract class BasePage {
+    private static final int TIMEOUT_MSECOND = 5000;
+    
     private String mUrl;
 
     protected BasePage(String url) {
@@ -16,7 +18,7 @@ abstract class BasePage {
 
     protected Document load() throws IOException {
         Connection connection = HttpConnection.connect(mUrl);
-        connection.timeout(5 * 1000);
+        connection.timeout(TIMEOUT_MSECOND);
         connection.proxy(Settings.getInstance().getProxy());
 
         return connection.get();

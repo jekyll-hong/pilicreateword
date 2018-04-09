@@ -7,12 +7,14 @@ import java.io.IOException;
 import java.util.*;
 
 public class MainPage extends BasePage {
+    private static final int MAX_SERIES_CNT = 100;
+    
     public MainPage(String url) {
         super(url);
     }
 
     public List<Series> getSeries() throws IOException {
-        List<Series> seriesList = new ArrayList<Series>(100);
+        List<Series> seriesList = new ArrayList<Series>(MAX_SERIES_CNT);
 
         /**
          * 全系列

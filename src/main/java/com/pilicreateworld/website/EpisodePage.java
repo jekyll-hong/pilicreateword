@@ -7,12 +7,14 @@ import java.io.IOException;
 import java.util.*;
 
 public class EpisodePage extends BasePage {
+    private static final int MAX_IMAGE_CNT = 10;
+    
     public EpisodePage(String url) {
         super(url);
     }
 
     public List<Story> getStories() throws IOException {
-        List<Story> storyList = new ArrayList<Story>(10);
+        List<Story> storyList = new ArrayList<Story>(MAX_IMAGE_CNT);
 
         /**
          * 剧情口白

@@ -7,12 +7,14 @@ import java.io.IOException;
 import java.util.*;
 
 public class SeriesPage extends BasePage {
+    private static final int MAX_EPISODE_CNT = 60;
+    
     public SeriesPage(String url) {
         super(url);
     }
 
     public List<Episode> getEpisodes() throws IOException {
-        List<Episode> episodeList = new ArrayList<Episode>(60);
+        List<Episode> episodeList = new ArrayList<Episode>(MAX_EPISODE_CNT);
 
         /**
          * 全剧集
