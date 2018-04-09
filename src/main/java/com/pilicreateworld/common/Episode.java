@@ -9,7 +9,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Episode {
-    private static Pattern sNamePattern = Pattern.compile("[\\u4e00-\\u9fa5]+");
+    private static Pattern sNamePattern = Pattern.compile("([\\u4e00-\\u9fa5]|‧|、)+");
     private static Pattern sSerialNamePattern = Pattern.compile("\\d{2}");
 
     private String mName;
@@ -70,10 +70,6 @@ public class Episode {
          * “创世小组：xx 网站：霹雳创世录：pilicreateworld.tw-blog.com 霹雳创世录”
          */
         fullText.deleteTitle();
-        /**
-         * 检测汉字
-         */
-        fullText.detectWords();
 
         return fullText;
     }

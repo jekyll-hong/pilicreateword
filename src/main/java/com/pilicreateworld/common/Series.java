@@ -10,7 +10,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Series {
-    private static Pattern sNamePattern = Pattern.compile("[\\u4e00-\\u9fa5]+");
+    private static Pattern sNamePattern = Pattern.compile("([\\u4e00-\\u9fa5]|I)+");
     private static Pattern sSerialNamePattern = Pattern.compile("\\d{2}");
 
     private String mName;
