@@ -8,11 +8,10 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class Text {
-    private BufferedImage mImage = null;
+    private static final int BINARY_THRESHOLD = 240;
+    private static final int MIN_PARAGRAPH_SPACING = 15;
 
-    private int mIndex = 0;
-    private List<Row> mRowList = new LinkedList<Row>();
-    private List<Column> mColumnList = new LinkedList<Column>();
+    private BufferedImage mImage = null;
 
     public Text() {
         //nothing
@@ -44,195 +43,59 @@ public class Text {
         mImage = mImage.getSubimage(0, 30, mImage.getWidth(), mImage.getHeight() - 30);
     }
 
-    public void detectWords() {
-        findRows();
-        findColumns();
-    }
+    public List<Paragraph> getParagraph() {
+        List<Paragraph> paragraphList = new LinkedList<Paragraph>();
 
-    public Word read() {
-        if (mIndex == mRowList.size() * mColumnList.size()) {
-            return null;
-        }
-
-        Row row = mRowList.get(mIndex / mColumnList.size());
-        Column column = mColumnList.get(mIndex % mColumnList.size());
-        mIndex++;
-
-        return new Word(mImage.getSubimage(column.x, row.y, column.width, row.height));
-    }
-
-    public boolean isEof() {
-        return mIndex == mRowList.size() * mColumnList.size();
-    }
-
-    private class Row {
-        int y;
-        int height;
-    }
-
-    private class Column {
-        int x;
-        int width;
-    }
-
-    private void findRows() {
-        Row row = null;
-        int prevCount = 0;
-        int boundary = 0;
+        /**
+         * 连续的空行视为段落间隔
+         */
+        int pos = -1;
+        int blankLines = 0;
 
         int yOffset = 0;
         do {
-            int count = ImageProcess.getBlackPixelsInRow(mImage, yOffset);
-            if (count > 0) {
-                /**
-                 * word
-                 */
-                if (row == null) {
-                    /**
-                     * upper boundary
-                     */
-                    row = new Row();
-                    row.y = yOffset;
+            int cnt = getBlackPixels(yOffset, BINARY_THRESHOLD);
+            if (cnt > 0) {
+                if (pos > 0 && bankLines > MIN_PARAGRAPH_SPACING) {
+                    paragraphList.add(new Paragraph(
+                        mImage.getSubimage(0, pos, mImage.getWidth(), yOffset - bankLines)));
 
-                    boundary = row.y;
-                }
-                else {
-                    /**
-                     * 如果相邻两行的边界不明显，则根据变化趋势来判定是否达到边界
-                     */
-                    if ((calculateMagnitude(prevCount) - calculateMagnitude(count) > 1)
-                            && (boundary == row.y)) {
-                        /**
-                         * 大幅下降，临近边界
-                         */
-                        boundary = yOffset;
-                    }
-                    else if ((boundary > row.y) && (prevCount >= count)) {
-                        /**
-                         * 临近边界时，要最小值
-                         */
-                        boundary = yOffset;
-                    }
-                    else if ((calculateMagnitude(count) - calculateMagnitude(prevCount) > 1)
-                            && (boundary > row.y)) {
-                        /**
-                         * 大幅上升，远离边界
-                         */
-                        row.height = boundary - row.y + 1;
-                        mRowList.add(row);
-
-                        row = new Row();
-                        row.y = boundary + 1;
-
-                        boundary = row.y;
-                    }
+                    pos = -1;
                 }
 
-                prevCount = count;
+                blankLines = 0;
+
+                if (pos < 0) {
+                    pos = yOffset - 1;
+                }
             }
             else {
-                /**
-                 * background
-                 */
-                if (row != null) {
-                    /**
-                     * lower boundary
-                     */
-                    row.height = yOffset - row.y;
-
-                    mRowList.add(row);
-                    row = null;
-                }
+                blankLines++;
             }
 
             yOffset++;
         }
         while (yOffset < mImage.getHeight());
+
+        return paragraphList;
     }
 
-    private void findColumns() {
-        Column column = null;
-        int prevCount = 0;
-        int boundary = 0;
+    private int getBlackPixels(int y, int binaryThreshold) {
+        int count = 0;
 
-        int xOffset = 0;
-        do {
-            int count = ImageProcess.getBlackPixelsInColumn(mImage, xOffset);
-            if (count > 0) {
+        for (int i = 0; i < mImage.getWidth(); i++) {
+            /**
+             * 灰度图像的R、G、B三个通道的颜色值都是同一灰度值
+             */
+            int gray = mImage.getRGB(i, y) & 0xff;
+            if (gray < binaryThreshold) {
                 /**
-                 * word
+                 * 二值化后对应像素是0
                  */
-                if (column == null) {
-                    /**
-                     * left boundary
-                     */
-                    column = new Column();
-                    column.x = xOffset;
-
-                    boundary = column.x;
-                }
-                else {
-                    /**
-                     * 如果相邻两列的边界不明显，则根据变化趋势来判定是否达到边界
-                     */
-                    if ((calculateMagnitude(prevCount) - calculateMagnitude(count) > 0)
-                            && (boundary == column.x)) {
-                        /**
-                         * 大幅下降，临近边界
-                         */
-                        boundary = xOffset;
-                    }
-                    else if ((boundary > column.x) && (prevCount >= count)) {
-                        /**
-                         * 临近边界时，要最小值
-                         */
-                        boundary = xOffset;
-                    }
-                    else if ((calculateMagnitude(count) - calculateMagnitude(prevCount) > 0)
-                            && (boundary > column.x)) {
-                        /**
-                         * 大幅上升，远离边界
-                         */
-                        column.width = boundary - column.x + 1;
-                        mColumnList.add(column);
-
-                        column = new Column();
-                        column.x = boundary + 1;
-
-                        boundary = column.x;
-                    }
-                }
-
-                prevCount = count;
+                count++;
             }
-            else {
-                /**
-                 * background
-                 */
-                if (column != null) {
-                    /**
-                     * right boundary
-                     */
-                    column.width = xOffset - column.x;
-
-                    mColumnList.add(column);
-                    column = null;
-                }
-            }
-
-            xOffset++;
-        }
-        while (xOffset < mImage.getWidth());
-    }
-
-    private static int calculateMagnitude(int number) {
-        int n = 0;
-
-        while (number / 10 > 0) {
-            number = number / 10;
-            n++;
         }
 
-        return n;
+        return count;
     }
 }
