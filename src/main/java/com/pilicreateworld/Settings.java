@@ -113,4 +113,8 @@ public class Settings {
     public boolean isDebuggable() {
         return mEnableDebug;
     }
+
+    public int getOcrServiceType() {
+        return 0;
+    }
 }
