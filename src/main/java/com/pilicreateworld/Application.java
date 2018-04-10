@@ -45,12 +45,24 @@ public class Application {
 	}
 
 	private void execute() {
+		Scanner scanner = new Scanner(System.in);
+
 		try {
 			List<Series> seriesList = fetchSeriesInformation();
 
 			for (Series series : seriesList) {
-				series.exportPdf();
-				System.out.print("导出《" + series.getName() + "》完毕！\n");
+				System.out.print(seriesList.indexOf(series) + " ——《" + series.getName() + "》\n");
+			}
+
+			System.out.print("请输入序号：");
+
+			int index = scanner.nextInt();
+			if (index < 0 || index >= seriesList.size()) {
+				System.err.print("无效的序号\n");
+			}
+			else {
+				seriesList.get(index).exportPdf();
+				System.out.print("《" + series.getName() + "》导出成功！\n");
 			}
 		}
 		catch (IOException e) {
@@ -59,6 +71,9 @@ public class Application {
 			if (Settings.isDebuggable()) {
 				e.printStackTrace();
 			}
+		}
+		finally {
+			scanner.close();
 		}
 	}
 
