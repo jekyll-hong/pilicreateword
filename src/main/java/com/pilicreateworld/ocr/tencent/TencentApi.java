@@ -9,12 +9,12 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import javax.imageio.ImageIO;
 
-public final class OcrApi implements Client {
-	private static OcrApi sInstance = null;
+public final class TencentApi implements OcrService {
+	private static TencentApi sInstance = null;
 
-	public static getInstance() {
+	public static TencentApi getInstance() {
 		if (sInstance == null) {
-			sInstance = new OcrApi();
+			sInstance = new TencentApi();
 		}
 
 		return sInstance;
@@ -34,23 +34,44 @@ public final class OcrApi implements Client {
 	private static final String IMAGE_TYPE = "png"
 	private static final String IMAGE_MIME = "image/png";
 
-	private OkHttpClient mClient;
+	private OkHttpClient mHttpClient;
 	private String mAuthorization;
 
-	private OcrApi() {
-		OkHttpClient.Builder builder = new OkHttpClient.Builder();
-        builder.connectTimeout(TIMEOUT_SEC, TimeUnit.SECONDS);
-        builder.readTimeout(TIMEOUT_SEC, TimeUnit.SECONDS);
-        builder.writeTimeout(TIMEOUT_SEC, TimeUnit.SECONDS);
-        mClient = builder.build();
-
+	private TencentApi() {
+        mHttpClient = createClient();
         mAuthorization = getAuthorization();
 	}
+
+	private static String getAuthorization() {
+    	String signText = getSignText();
+        byte[] signDigest = sign(signText, SECRET_KEY);
+
+        byte[] temp = new byte[signDigest.length + signText.getBytes().length];
+        System.arraycopy(signDigest, 0, temp, 0, signDigest.length);
+        System.arraycopy(signText.getBytes(), 0, temp, signDigest.length, signText.getBytes().length);
+
+        return Base64.getEncoder().encodeToString(temp);
+    }
+
+    private static String getSignText() {
+    	long now = System.currentTimeMillis() / 1000;
+        
+        return String.format("a=%d&b=%s&k=%s&t=%d&e=%d&r=%d&u=%d", 
+        	APP_ID, BUCKET_NAME, SECRET_ID, now, now + EXPIRED_SEC, 
+        	Math.abs(new Random().nextInt()), 0);
+    }
+
+    private static byte[] sign(String str, String key) {
+        Mac mac = Mac.getInstance("HmacSHA1");
+        mac.init(new SecretKeySpec(key.getBytes(), "HmacSHA1"));
+
+        return mac.doFinal(str.getBytes());
+    }
 
 	public String process(BufferedImage image) {
 		Request request = createRequest(image);
 
-		Response response = mClient.newCall(request).execute();
+		Response response = mHttpClient.newCall(request).execute();
 		if (response.isSuccessful()) {
 			String json = response.body().string();
 
@@ -63,27 +84,37 @@ public final class OcrApi implements Client {
 		}
 	}
 
-    private static Request createRequest(BufferedImage image) {
+	private static OkHttpClient createClient() {
+		OkHttpClient.Builder builder = new OkHttpClient.Builder();
+
+        builder.connectTimeout(TIMEOUT_SEC, TimeUnit.SECONDS);
+        builder.readTimeout(TIMEOUT_SEC, TimeUnit.SECONDS);
+        builder.writeTimeout(TIMEOUT_SEC, TimeUnit.SECONDS);
+        
+        return builder.build();
+	}
+
+    private static Request createPostRequest(BufferedImage image) {
         Request.Builder builder = new Request.Builder();
 
         builder.url(URL);
         builder.header("authorization", mAuthorization);
-        builder.post(createRequestBody(image));
+        builder.post(createMultipartBody(image));
+
+        return builder.build();
+    }
+
+    private static MultipartBody createMultipartBody(BufferedImage image) {
+        MultipartBody.Builder builder = new MultipartBody.Builder();
+
+        builder.addFormDataPart("appid", APP_ID);
+        builder.addFormDataPart("bucket", BUCKET_NAME);
+        builder.addFormDataPart("image", "temp.png", createRequestBody(image)));
 
         return builder.build();
     }
 
     private static RequestBody createRequestBody(BufferedImage image) {
-        MultipartBody.Builder builder = new MultipartBody.Builder();
-
-        builder.addFormDataPart("appid", APP_ID);
-        builder.addFormDataPart("bucket", BUCKET_NAME);
-        builder.addFormDataPart("image", "temp.png", toRequestBody(image)));
-
-        return builder.build();
-    }
-
-    private static RequestBody toRequestBody(BufferedImage image) {
     	ByteArrayOutputStream output = new ByteArrayOutputStream();
 
     	try {
@@ -113,31 +144,5 @@ public final class OcrApi implements Client {
         }
 
         return buffer.toString();
-    }
-
-    private static String getAuthorization() {
-    	String signText = getSignText();
-        byte[] signDigest = sign(signText, SECRET_KEY);
-
-        byte[] temp = new byte[signDigest.length + signText.getBytes().length];
-        System.arraycopy(signDigest, 0, temp, 0, signDigest.length);
-        System.arraycopy(signText.getBytes(), 0, temp, signDigest.length, signText.getBytes().length);
-
-        return Base64.getEncoder().encodeToString(temp);
-    }
-
-    private static String getSignText() {
-    	long now = System.currentTimeMillis() / 1000;
-        
-        return String.format("a=%d&b=%s&k=%s&t=%d&e=%d&r=%d&u=%d", 
-        	APP_ID, BUCKET_NAME, SECRET_ID, now, now + EXPIRED_SEC, 
-        	Math.abs(new Random().nextInt()), 0);
-    }
-
-    private static byte[] sign(String str, String key) {
-        Mac mac = Mac.getInstance("HmacSHA1");
-        mac.init(new SecretKeySpec(key.getBytes(), "HmacSHA1"));
-
-        return mac.doFinal(str.getBytes());
     }
 }
