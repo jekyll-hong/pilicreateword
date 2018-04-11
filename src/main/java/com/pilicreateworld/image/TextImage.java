@@ -7,17 +7,19 @@ import java.io.InputStream;
 import java.util.LinkedList;
 import java.util.List;
 
-public class Text {
+import com.pilicreateworld.ocr.OcrServiceFactory;
+
+public class TextImage {
     private static final int BINARY_THRESHOLD = 240;
     private static final int MIN_PARAGRAPH_SPACING = 15;
 
     private BufferedImage mImage = null;
 
-    public Text() {
+    public TextImage() {
         //nothing
     }
 
-    public Text(InputStream in) throws IOException {
+    public TextImage(InputStream in) throws IOException {
         mImage = ImageIO.read(in);
         if (mImage == null) {
             throw new IllegalStateException("read image fail!");
@@ -30,12 +32,12 @@ public class Text {
         mImage = ImageProcess.enhanceContrast(mImage, 2.0f);
     }
 
-    public void append(Text text) {
+    public void append(TextImage textImage) {
         if (mImage == null) {
             mImage = text.mImage;
         }
         else {
-            mImage = ImageProcess.stitch(mImage, text.mImage);
+            mImage = ImageProcess.stitch(mImage, textImage.mImage);
         }
     }
 
@@ -43,8 +45,8 @@ public class Text {
         mImage = mImage.getSubimage(0, 30, mImage.getWidth(), mImage.getHeight() - 30);
     }
 
-    public List<Paragraph> getParagraph() {
-        List<Paragraph> paragraphList = new LinkedList<Paragraph>();
+    public String getText() {
+        StringBuffer buffer = new StringBuffer();
 
         /**
          * 连续的空行视为段落间隔
@@ -57,8 +59,14 @@ public class Text {
             int cnt = getBlackPixels(yOffset, BINARY_THRESHOLD);
             if (cnt > 0) {
                 if (pos > 0 && bankLines > MIN_PARAGRAPH_SPACING) {
-                    paragraphList.add(new Paragraph(
-                        mImage.getSubimage(0, pos, mImage.getWidth(), yOffset - bankLines)));
+                    BufferedImage paragraphImage = mImage.getSubimage(
+                        0, pos, mImage.getWidth(), yOffset - bankLines);
+
+                    String text = OcrServiceFactory.getService().process(paragraphImage);
+                    if (!text.isEmpty()) {
+                        buffer.add(text);
+                        buffer.add('\n');
+                    }
 
                     pos = -1;
                 }
@@ -77,7 +85,7 @@ public class Text {
         }
         while (yOffset < mImage.getHeight());
 
-        return paragraphList;
+        return buffer.toString();
     }
 
     private int getBlackPixels(int y, int binaryThreshold) {
