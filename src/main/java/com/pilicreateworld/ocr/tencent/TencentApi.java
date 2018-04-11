@@ -33,7 +33,7 @@ public final class TencentApi implements OcrService {
 
 	private static final String URL = "http://recognition.image.myqcloud.com/ocr/general";
 
-	private static final String APP_ID = "1256449924";
+	private static final int APP_ID = 1256449924;
 	private static final String SECRET_ID = "AKIDiR5Xot4QxNdlolK9ZnVYVHcO8h5HZ7nK";
 	private static final String SECRET_KEY = "W1OdLySnxxrdFft20rX2LSSGtKzRo00p";
 
@@ -75,10 +75,10 @@ public final class TencentApi implements OcrService {
 
     private static String getSignText() {
     	long now = System.currentTimeMillis() / 1000;
+    	int random = Math.abs(new Random().nextInt());
         
-        return String.format("a=%d&b=%s&k=%s&t=%d&e=%d&r=%d&u=%d", 
-        	APP_ID, BUCKET_NAME, SECRET_ID, now, now + EXPIRED_SEC, 
-        	Math.abs(new Random().nextInt()), 0);
+        return String.format("a=%d&b=%s&k=%s&t=%d&e=%d&r=%d&u=%d",
+        	APP_ID, BUCKET_NAME, SECRET_ID, now, now + EXPIRED_SEC, random, 0);
     }
 
     private static byte[] sign(String str, String key) throws NoSuchAlgorithmException, InvalidKeyException {
@@ -88,6 +88,7 @@ public final class TencentApi implements OcrService {
         return mac.doFinal(str.getBytes());
     }
 
+    @Override
 	public String process(BufferedImage image) throws IOException {
 		Request request = createPostRequest(image);
 
@@ -126,8 +127,9 @@ public final class TencentApi implements OcrService {
 
     private static MultipartBody createMultipartBody(BufferedImage image) {
         MultipartBody.Builder builder = new MultipartBody.Builder();
+		builder.setType(MultipartBody.FORM);
 
-        builder.addFormDataPart("appid", APP_ID);
+        builder.addFormDataPart("appid", String.valueOf(APP_ID));
         builder.addFormDataPart("bucket", BUCKET_NAME);
         builder.addFormDataPart("image", "temp.png", createRequestBody(image));
 
