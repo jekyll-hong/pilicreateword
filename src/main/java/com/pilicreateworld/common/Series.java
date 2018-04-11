@@ -33,12 +33,12 @@ public class Series {
         return mSerialNumber;
     }
 
-    public void exportPdf() throws IOException {
+    public void export() throws IOException {
         PdfCreator pdfCreator = new PdfCreator(
                 Settings.getInstance().getOutputDirectory() + "/" + getName() + ".pdf");
 
         for (Episode episode : fetchEpisodesInformation()) {
-            pdfCreator.writeChapter(episode.getName(), episode.getFullText());
+            pdfCreator.writeChapter(episode.getName(), episode.getChapterText());
         }
 
         pdfCreator.close();

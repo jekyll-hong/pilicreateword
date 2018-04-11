@@ -54,24 +54,22 @@ public class Episode {
         return -1;
     }
 
-    public Text getFullText() throws IOException {
-        Text fullText = new Text();
+    public String getChapterText() throws IOException {
+        TextImage textImage = new TextImage();
 
         /**
-         * 合并剧情口白
+         * 拼接图像
          */
         for (Story story : fetchStoriesInformation()) {
-            Text text = story.getText();
-            fullText.append(text);
+            textImage.append(story.getTextImage());
         }
 
         /**
          * 删除最上面的标题
-         * “创世小组：xx 网站：霹雳创世录：pilicreateworld.tw-blog.com 霹雳创世录”
          */
-        fullText.deleteTitle();
+        textImage.deleteTitle();
 
-        return fullText;
+        return textImage.getText();
     }
 
     private List<Story> fetchStoriesInformation() throws IOException {

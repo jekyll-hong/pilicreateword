@@ -1,7 +1,7 @@
 package com.pilicreateworld.common;
 
 import com.pilicreateworld.Settings;
-import com.pilicreateworld.image.Text;
+import com.pilicreateworld.image.TextImage;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,8 +16,8 @@ public class Story {
         mUrl = url;
     }
 
-    public Text getText() throws IOException {
-        InputStream imageInputStream = null;
+    public TextImage getTextImage() throws IOException {
+        InputStream contentStream = null;
 
         do {
             URL httpUrl = new URL(mUrl);
@@ -41,7 +41,7 @@ public class Story {
                     /**
                      * 成功
                      */
-                    imageInputStream = connection.getInputStream();
+                    contentStream = connection.getInputStream();
                     break;
                 }
                 default: {
@@ -52,8 +52,11 @@ public class Story {
                 }
             }
         }
-        while (imageInputStream == null);
+        while (contentStream == null);
 
-        return new Text(imageInputStream);
+        /**
+         * GIF image
+         */
+        return new TextImage(contentStream);
     }
 }

@@ -61,7 +61,7 @@ public class Application {
 				System.err.print("无效的序号\n");
 			}
 			else {
-				seriesList.get(index).exportPdf();
+				seriesList.get(index).export();
 				System.out.print("《" + series.getName() + "》导出成功！\n");
 			}
 		}
