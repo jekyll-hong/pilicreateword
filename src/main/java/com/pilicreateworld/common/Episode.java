@@ -1,6 +1,6 @@
 package com.pilicreateworld.common;
 
-import com.pilicreateworld.image.Text;
+import com.pilicreateworld.image.TextImage;
 import com.pilicreateworld.website.EpisodePage;
 
 import java.io.IOException;

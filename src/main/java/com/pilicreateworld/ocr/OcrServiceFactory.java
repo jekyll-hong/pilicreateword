@@ -1,5 +1,6 @@
 package com.pilicreateworld.ocr;
 
+import com.pilicreateworld.Settings;
 import com.pilicreateworld.ocr.tencent.TencentApi;
 
 public class OcrServiceFactory {
@@ -7,9 +8,9 @@ public class OcrServiceFactory {
 		/**
 		 * 目前只集成了腾讯云ocr
 		 */
-		switch (Settings.getOcrServiceType()) {
+		switch (Settings.getInstance().getOcrServiceType()) {
 			default: {
-				return new TencentApi.getInstance();
+				return TencentApi.getInstance();
 			}
 		}
 	}

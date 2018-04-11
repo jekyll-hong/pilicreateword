@@ -1,9 +1,20 @@
 package com.pilicreateworld.ocr.tencent;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.pilicreateworld.ocr.OcrService;
+import okhttp3.*;
+
 import java.awt.image.BufferedImage;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -29,9 +40,9 @@ public final class TencentApi implements OcrService {
 	private static final String BUCKET_NAME = "pilicreateworld";
 	private static final long EXPIRED_SEC = 12 * 3600;
 
-	private static final String TIMEOUT_SEC = 5;
+	private static final int TIMEOUT_SEC = 5;
 
-	private static final String IMAGE_TYPE = "png"
+	private static final String IMAGE_TYPE = "png";
 	private static final String IMAGE_MIME = "image/png";
 
 	private OkHttpClient mHttpClient;
@@ -39,10 +50,19 @@ public final class TencentApi implements OcrService {
 
 	private TencentApi() {
         mHttpClient = createClient();
-        mAuthorization = getAuthorization();
+
+		try {
+			mAuthorization = getAuthorization();
+		}
+		catch (InvalidKeyException e) {
+			//ignore
+		}
+		catch (NoSuchAlgorithmException e) {
+			//ignore
+		}
 	}
 
-	private static String getAuthorization() {
+	private static String getAuthorization() throws InvalidKeyException, NoSuchAlgorithmException {
     	String signText = getSignText();
         byte[] signDigest = sign(signText, SECRET_KEY);
 
@@ -61,15 +81,15 @@ public final class TencentApi implements OcrService {
         	Math.abs(new Random().nextInt()), 0);
     }
 
-    private static byte[] sign(String str, String key) {
+    private static byte[] sign(String str, String key) throws NoSuchAlgorithmException, InvalidKeyException {
         Mac mac = Mac.getInstance("HmacSHA1");
         mac.init(new SecretKeySpec(key.getBytes(), "HmacSHA1"));
 
         return mac.doFinal(str.getBytes());
     }
 
-	public String process(BufferedImage image) {
-		Request request = createRequest(image);
+	public String process(BufferedImage image) throws IOException {
+		Request request = createPostRequest(image);
 
 		Response response = mHttpClient.newCall(request).execute();
 		if (response.isSuccessful()) {
@@ -94,7 +114,7 @@ public final class TencentApi implements OcrService {
         return builder.build();
 	}
 
-    private static Request createPostRequest(BufferedImage image) {
+    private Request createPostRequest(BufferedImage image) {
         Request.Builder builder = new Request.Builder();
 
         builder.url(URL);
@@ -109,7 +129,7 @@ public final class TencentApi implements OcrService {
 
         builder.addFormDataPart("appid", APP_ID);
         builder.addFormDataPart("bucket", BUCKET_NAME);
-        builder.addFormDataPart("image", "temp.png", createRequestBody(image)));
+        builder.addFormDataPart("image", "temp.png", createRequestBody(image));
 
         return builder.build();
     }
@@ -131,7 +151,7 @@ public final class TencentApi implements OcrService {
     	StringBuffer buffer = new StringBuffer();
 
         JsonObject root = new JsonParser().parse(json).getAsJsonObject();
-        if (root.get("code").getAsInteger() == 0) {
+        if (root.get("code").getAsInt() == 0) {
             JsonObject data = root.get("data").getAsJsonObject();
 
             JsonArray itemArray = data.get("items").getAsJsonArray();

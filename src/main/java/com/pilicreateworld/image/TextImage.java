@@ -1,11 +1,10 @@
 package com.pilicreateworld.image;
 
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.LinkedList;
-import java.util.List;
+
+import javax.imageio.ImageIO;
 
 import com.pilicreateworld.ocr.OcrServiceFactory;
 
@@ -34,7 +33,7 @@ public class TextImage {
 
     public void append(TextImage textImage) {
         if (mImage == null) {
-            mImage = text.mImage;
+            mImage = textImage.mImage;
         }
         else {
             mImage = ImageProcess.stitch(mImage, textImage.mImage);
@@ -45,7 +44,7 @@ public class TextImage {
         mImage = mImage.getSubimage(0, 30, mImage.getWidth(), mImage.getHeight() - 30);
     }
 
-    public String getText() {
+    public String getText() throws IOException {
         StringBuffer buffer = new StringBuffer();
 
         /**
@@ -58,14 +57,14 @@ public class TextImage {
         do {
             int cnt = getBlackPixels(yOffset, BINARY_THRESHOLD);
             if (cnt > 0) {
-                if (pos > 0 && bankLines > MIN_PARAGRAPH_SPACING) {
+                if (pos > 0 && blankLines > MIN_PARAGRAPH_SPACING) {
                     BufferedImage paragraphImage = mImage.getSubimage(
-                        0, pos, mImage.getWidth(), yOffset - bankLines);
+                        0, pos, mImage.getWidth(), yOffset - blankLines);
 
                     String text = OcrServiceFactory.getService().process(paragraphImage);
                     if (!text.isEmpty()) {
-                        buffer.add(text);
-                        buffer.add('\n');
+                        buffer.append(text);
+                        buffer.append('\n');
                     }
 
                     pos = -1;

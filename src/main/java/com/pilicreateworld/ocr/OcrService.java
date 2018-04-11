@@ -1,7 +1,8 @@
-package com.pilicreateworld.image;
+package com.pilicreateworld.ocr;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 
-public interface Client {
-	String process(BufferedImage image);
+public interface OcrService {
+	String process(BufferedImage image) throws IOException;
 }

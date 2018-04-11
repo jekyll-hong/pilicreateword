@@ -1,14 +1,15 @@
 package com.pilicreateworld.ebook;
 
+import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.StringReader;
 
 import com.itextpdf.kernel.geom.PageSize;
 import com.itextpdf.kernel.pdf.*;
 import com.itextpdf.kernel.pdf.navigation.PdfDestination;
 import com.itextpdf.layout.Document;
-import com.pilicreateworld.image.Paragraph;
-import com.pilicreateworld.image.Text;
+import com.itextpdf.layout.element.Paragraph;
 
 public class PdfCreator {
 	private PdfDocument mPdfDocument;
