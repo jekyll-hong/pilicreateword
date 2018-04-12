@@ -29,8 +29,6 @@ public class Settings {
     */
     private int mOcrServiceType = OcrServiceType.TENCENT;
 
-    private boolean mEnableDebug = false;
-
     private Settings() {
         //nothing
     }
@@ -110,14 +108,6 @@ public class Settings {
         return mTargetDevice;
     }
     */
-    public void enableDebug() {
-        mEnableDebug = true;
-    }
-
-    public boolean isDebuggable() {
-        return mEnableDebug;
-    }
-
     public int getOcrServiceType() {
         return mOcrServiceType;
     }

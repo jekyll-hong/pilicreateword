@@ -33,9 +33,6 @@ public class Application {
 
 				Settings.getInstance().setProxy(proxy);
 			}
-			else if (arg.startsWith("--enable_debug")) {
-				Settings.getInstance().enableDebug();
-			}
 			else {
 				//TODO: add more here
 			}
@@ -69,11 +66,9 @@ public class Application {
 			}
 		}
 		catch (IOException e) {
-			System.err.print(e.getMessage());
+			System.err.print("失败，" + e.getMessage() + "\n");
 
-			if (Settings.getInstance().isDebuggable()) {
-				e.printStackTrace();
-			}
+			e.printStackTrace();
 		}
 		finally {
 			scanner.close();
