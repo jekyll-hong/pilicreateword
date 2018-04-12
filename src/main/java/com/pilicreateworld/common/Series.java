@@ -48,7 +48,7 @@ public class Series {
             return getName();
         }
         else {
-            return "【" + String.format("%02d", mSerialNumber) + "】 " + getName();
+            return "【" + String.format("%02d", mSerialNumber) + "】" + getName();
         }
     }
 
