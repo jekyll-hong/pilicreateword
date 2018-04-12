@@ -4,7 +4,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.pilicreateworld.ocr.OcrService;
-import okhttp3.*;
 
 import java.awt.image.BufferedImage;
 
@@ -19,6 +18,8 @@ import java.util.concurrent.TimeUnit;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import javax.imageio.ImageIO;
+
+import okhttp3.*;
 
 public final class TencentApi implements OcrService {
 	private static TencentApi sInstance = null;
@@ -40,7 +41,7 @@ public final class TencentApi implements OcrService {
 	private static final String BUCKET_NAME = "pilicreateworld";
 	private static final long EXPIRED_SEC = 12 * 3600;
 
-	private static final int TIMEOUT_SEC = 5;
+	private static final int TIMEOUT_SEC = 5 * 60;
 
 	private static final String IMAGE_TYPE = "png";
 	private static final String IMAGE_MIME = "image/png";
@@ -50,30 +51,24 @@ public final class TencentApi implements OcrService {
 
 	private TencentApi() {
         mHttpClient = createClient();
-
-		try {
-			mAuthorization = getAuthorization();
-		}
-		catch (InvalidKeyException e) {
-			//ignore
-		}
-		catch (NoSuchAlgorithmException e) {
-			//ignore
-		}
+		mAuthorization = getAuthorization();
 	}
 
-	private static String getAuthorization() throws InvalidKeyException, NoSuchAlgorithmException {
+	private static String getAuthorization() {
     	String signText = getSignText();
-        byte[] signDigest = sign(signText, SECRET_KEY);
+		byte[] signDigest = sign(signText, SECRET_KEY);
 
-        byte[] temp = new byte[signDigest.length + signText.getBytes().length];
+		byte[] temp = new byte[signDigest.length + signText.getBytes().length];
         System.arraycopy(signDigest, 0, temp, 0, signDigest.length);
         System.arraycopy(signText.getBytes(), 0, temp, signDigest.length, signText.getBytes().length);
 
         return Base64.getEncoder().encodeToString(temp);
     }
 
-    private static String getSignText() {
+	/**
+	 * 多次有效签名，不绑定资源
+	 */
+	private static String getSignText() {
     	long now = System.currentTimeMillis() / 1000;
     	int random = Math.abs(new Random().nextInt());
         
@@ -81,11 +76,19 @@ public final class TencentApi implements OcrService {
         	APP_ID, BUCKET_NAME, SECRET_ID, now, now + EXPIRED_SEC, random, 0);
     }
 
-    private static byte[] sign(String str, String key) throws NoSuchAlgorithmException, InvalidKeyException {
-        Mac mac = Mac.getInstance("HmacSHA1");
-        mac.init(new SecretKeySpec(key.getBytes(), "HmacSHA1"));
+    private static byte[] sign(String str, String key) {
+		try {
+			Mac mac = Mac.getInstance("HmacSHA1");
+			mac.init(new SecretKeySpec(key.getBytes(), "HmacSHA1"));
 
-        return mac.doFinal(str.getBytes());
+			return mac.doFinal(str.getBytes());
+		}
+		catch (NoSuchAlgorithmException e) {
+			throw new IllegalStateException("not support HmacSHA1 Algorithm");
+		}
+		catch (InvalidKeyException e) {
+			throw new IllegalStateException("invalid key");
+		}
     }
 
     @Override
@@ -131,7 +134,9 @@ public final class TencentApi implements OcrService {
 
         builder.addFormDataPart("appid", String.valueOf(APP_ID));
         builder.addFormDataPart("bucket", BUCKET_NAME);
-        builder.addFormDataPart("image", "temp.png", createRequestBody(image));
+        builder.addFormDataPart("image",
+				Integer.toHexString(image.hashCode()) + ".png",
+				createRequestBody(image));
 
         return builder.build();
     }
