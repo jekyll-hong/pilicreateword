@@ -3,7 +3,7 @@ package com.pilicreateworld.common;
 import com.pilicreateworld.image.TextImage;
 import com.pilicreateworld.website.EpisodePage;
 
-import java.io.IOException;
+import java.io.*;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -54,7 +54,50 @@ public class Episode {
         return -1;
     }
 
-    public String getChapterText() throws IOException {
+    public void export(File dir) throws IOException {
+        FileWriter writer = new FileWriter(
+                dir.getCanonicalPath() + "/" + getChapterTitle() + ".txt");
+
+        /**
+         * 内容
+         */
+        BufferedReader reader = new BufferedReader(new StringReader(getChapterText()));
+        while (true) {
+            String line = reader.readLine();
+            if (line == null) {
+                break;
+            }
+
+            /**
+             * 段落
+             */
+            writer.write(line);
+            writer.write("\r\n");
+
+            /**
+             * 空一行
+             */
+            writer.write("\r\n");
+        }
+
+        writer.close();
+    }
+
+    private String getChapterTitle() {
+        StringBuilder builder = new StringBuilder();
+
+        if (mSerialNumber == -1) {
+            builder.append("序章 ");
+        }
+        else {
+            builder.append(String.format("第%02d集 ", mSerialNumber));
+        }
+        builder.append(getName());
+
+        return builder.toString();
+    }
+
+    private String getChapterText() throws IOException {
         TextImage textImage = new TextImage();
 
         /**

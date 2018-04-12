@@ -1,10 +1,9 @@
 package com.pilicreateworld.common;
 
 import com.pilicreateworld.Settings;
-import com.pilicreateworld.ebook.PdfCreator;
 import com.pilicreateworld.website.SeriesPage;
 
-import java.io.IOException;
+import java.io.*;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -34,14 +33,23 @@ public class Series {
     }
 
     public void export() throws IOException {
-        PdfCreator pdfCreator = new PdfCreator(
-                Settings.getInstance().getOutputDirectory() + "/" + getName() + ".pdf");
-
-        for (Episode episode : fetchEpisodesInformation()) {
-            pdfCreator.writeChapter(episode.getName(), episode.getChapterText());
+        File dir = new File(Settings.getInstance().getOutputDirectory() + "/" + getDirName());
+        if (!dir.exists()) {
+            dir.mkdir();
         }
 
-        pdfCreator.close();
+        for (Episode episode : fetchEpisodesInformation()) {
+            episode.export(dir);
+        }
+    }
+
+    private String getDirName() {
+        if (mSerialNumber == 0x7fffffff) {
+            return getName();
+        }
+        else {
+            return "【" + String.format("%02d", mSerialNumber) + "】 " + getName();
+        }
     }
 
     private List<Episode> fetchEpisodesInformation() throws IOException {

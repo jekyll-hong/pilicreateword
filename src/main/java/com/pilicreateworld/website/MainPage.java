@@ -2,10 +2,10 @@ package com.pilicreateworld.website;
 
 import com.pilicreateworld.common.Series;
 
-import org.jsoup.nodes.Element;
-
 import java.io.IOException;
 import java.util.*;
+
+import org.jsoup.nodes.Element;
 
 public class MainPage extends BasePage {
     private static final int MAX_SERIES_CNT = 100;

@@ -24,9 +24,7 @@ public class Settings {
     private boolean mEnableProxy = false;
     private String mProxyIp;
     private int mProxyPort;
-    /*
-    private String mTargetDevice = "unknown";
-    */
+
     private int mOcrServiceType = OcrServiceType.TENCENT;
 
     private Settings() {
@@ -99,15 +97,7 @@ public class Settings {
 
         return proxy;
     }
-    /*
-    public void setTargetDevice(String device) {
-        mTargetDevice = device;
-    }
 
-    public String getTargetDevice() {
-        return mTargetDevice;
-    }
-    */
     public int getOcrServiceType() {
         return mOcrServiceType;
     }

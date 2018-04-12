@@ -1,10 +1,11 @@
 package com.pilicreateworld.website;
 
 import com.pilicreateworld.common.Episode;
-import org.jsoup.nodes.Element;
 
 import java.io.IOException;
 import java.util.*;
+
+import org.jsoup.nodes.Element;
 
 public class SeriesPage extends BasePage {
     private static final int MAX_EPISODE_CNT = 60;

@@ -6,7 +6,6 @@ import com.google.gson.JsonParser;
 import com.pilicreateworld.ocr.OcrService;
 
 import java.awt.image.BufferedImage;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.security.InvalidKeyException;

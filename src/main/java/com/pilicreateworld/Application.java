@@ -21,13 +21,6 @@ public class Application {
 
 				Settings.getInstance().setOutputDirectory(path);
 			}
-			/*
-			else if (arg.startsWith("--device=")) {
-				String device = arg.substring(9);
-
-				Settings.getInstance().setTargetDevice(device);
-			}
-			*/
 			else if (arg.startsWith("--proxy=")) {
 				String proxy = arg.substring(8);
 

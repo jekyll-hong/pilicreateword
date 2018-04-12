@@ -2,11 +2,11 @@ package com.pilicreateworld.website;
 
 import com.pilicreateworld.Settings;
 
+import java.io.IOException;
+
 import org.jsoup.Connection;
 import org.jsoup.helper.HttpConnection;
 import org.jsoup.nodes.Document;
-
-import java.io.IOException;
 
 abstract class BasePage {
     private static final int TIMEOUT_MSECOND = 5000;
