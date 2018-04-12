@@ -1,5 +1,7 @@
 package com.pilicreateworld;
 
+import com.pilicreateworld.ocr.OcrServiceType;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -25,6 +27,8 @@ public class Settings {
     /*
     private String mTargetDevice = "unknown";
     */
+    private int mOcrServiceType = OcrServiceType.TENCENT;
+
     private boolean mEnableDebug = false;
 
     private Settings() {
@@ -115,6 +119,6 @@ public class Settings {
     }
 
     public int getOcrServiceType() {
-        return 0;
+        return mOcrServiceType;
     }
 }

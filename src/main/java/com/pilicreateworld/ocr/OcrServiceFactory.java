@@ -9,8 +9,11 @@ public class OcrServiceFactory {
 		 * 目前只集成了腾讯云ocr
 		 */
 		switch (Settings.getInstance().getOcrServiceType()) {
-			default: {
+			case OcrServiceType.TENCENT: {
 				return TencentApi.getInstance();
+			}
+			default: {
+				throw new IllegalArgumentException("unknown ocr service");
 			}
 		}
 	}
