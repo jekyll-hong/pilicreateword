@@ -114,6 +114,8 @@ public class TextImage {
 
                 prevRow = row;
             }
+
+            paragraphList.add(paragraph);
         }
 
         return paragraphList;
