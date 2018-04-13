@@ -1,6 +1,5 @@
 package com.pilicreateworld.common;
 
-import com.pilicreateworld.Settings;
 import com.pilicreateworld.website.SeriesPage;
 
 import java.io.*;
@@ -24,35 +23,23 @@ public class Series {
         mUrl = url;
     }
 
-    public String getName() {
-        return mName;
-    }
-
     public int getSerialNumber() {
         return mSerialNumber;
     }
 
-    public void export() throws IOException {
-        File dir = new File(Settings.getInstance().getOutputDirectory() + "/" + getDirName());
-        if (!dir.exists()) {
-            dir.mkdir();
-        }
-
-        for (Episode episode : fetchEpisodesInformation()) {
-            episode.export(dir);
-        }
-    }
-
-    private String getDirName() {
+    public String getName() {
         if (mSerialNumber == 0x7fffffff) {
-            return getName();
+            /**
+             * 剧集连载中，未完
+             */
+            return "【play now】" + mName;
         }
         else {
-            return "【" + String.format("%02d", mSerialNumber) + "】" + getName();
+            return "【" + String.format("%02d", mSerialNumber) + "】" + mName;
         }
     }
 
-    private List<Episode> fetchEpisodesInformation() throws IOException {
+    public List<Episode> fetchEpisodesInformation() throws IOException {
         SeriesPage seriesPage = new SeriesPage(mUrl);
         return seriesPage.getEpisodes();
     }
