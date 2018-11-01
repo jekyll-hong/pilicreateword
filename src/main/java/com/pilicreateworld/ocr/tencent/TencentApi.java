@@ -33,9 +33,9 @@ public final class TencentApi implements OcrService {
 
 	private static final String URL = "http://recognition.image.myqcloud.com/ocr/general";
 
-	private static final int APP_ID = 1256449924;
-	private static final String SECRET_ID = "AKIDiR5Xot4QxNdlolK9ZnVYVHcO8h5HZ7nK";
-	private static final String SECRET_KEY = "W1OdLySnxxrdFft20rX2LSSGtKzRo00p";
+	private static final int APP_ID = -1;
+	private static final String SECRET_ID = "";
+	private static final String SECRET_KEY = "";
 
 	private static final String BUCKET_NAME = "pilicreateworld";
 	private static final long EXPIRED_SEC = 12 * 3600;
